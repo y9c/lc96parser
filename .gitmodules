@@ -1,0 +1,3 @@
+[submodule "rdmlpython"]
+	path = rdmlpython
+	url = https://github.com/RDML-consortium/rdmlpython.git
