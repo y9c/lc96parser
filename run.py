@@ -24,12 +24,13 @@ excel_file = input_file.rsplit(".", 1)[0] + ".xlsx"
 
 
 script_path = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), "rdml.py"
+    os.path.dirname(os.path.realpath(__file__)), "rdmlpython", "rdml.py"
 )
 
 
 subprocess.call(
     [
+        "python3",
         script_path,
         "-lrp",
         input_file,
@@ -47,7 +48,7 @@ subprocess.call(
 )
 
 
-df = pd.read_csv(input_file, sep="\t").loc[
+df = pd.read_csv(tsv_file, sep="\t").loc[
     :, ["well", "Cq (mean eff) - no plateau - stat efficiency"]
 ]
 df_plate = (
