@@ -12,6 +12,9 @@ import sys
 
 import pandas as pd
 
+if len(sys.argv) < 2:
+    sys.exit("Usage: run.py input_file.lc96p")
+
 input_file = sys.argv[1]
 
 # create 3 files for each input
