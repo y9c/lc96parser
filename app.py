@@ -26,7 +26,7 @@ def to_excel(df):
     worksheet = writer.sheets["quant"]
     format1 = workbook.add_format({"num_format": "0.000"})
     worksheet.set_column("A:A", None, format1)
-    writer.save()
+    writer.close()
     processed_data = output.getvalue()
     return processed_data
 
