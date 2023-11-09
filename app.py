@@ -54,6 +54,7 @@ if uploaded_file is not None:
             amp_table, result_table = run_lrp(temp_file_path)
             # st.line_chart(amp_table)
 
+            st.subheader("Amp curves", divider="rainbow")
             fig = px.line(amp_table, x=amp_table.index, y=amp_table.columns)
             fig.update_layout(
                 clickmode="event+select",
@@ -75,6 +76,7 @@ if uploaded_file is not None:
             )
             st.plotly_chart(fig, use_container_width=True, height=550)
 
+            st.subheader("Cq values", divider="rainbow")
             st.dataframe(
                 result_table.style.background_gradient(axis=None).format(
                     "{:.2f}"
