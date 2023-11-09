@@ -1,0 +1,176 @@
+Changes between RDML v1.2 to v 1.3
+
+Digital PCR measure a high number of partitions. To not overload 
+the XML file with this data, separate table files are used that 
+are stored in a partitions folder within the RDML zip file. The 
+counts of the partitions must be stored in the XML file within
+the corresponding data elements.
+
+The table files must use tabs (\t) as column separators and dots 
+(.) as decimal separators. A line must contain the data of one
+partition. For each fluorescence two columns are created. One with
+the endpoint fluorescence value and a second with its score. The
+score can be:
+  u - undefined or not yet scored
+  p - positive
+  n - negative
+  e - excluded (should be ignored)
+The file must have a header line with the target ids matching the 
+fluorescence value.
+
+The first lines could look like:
+GAPDH\tGAPDH\tHBV\tHBV\n
+3412.32\tp\t121.89\tn\n
+239.23\tn\t3459.27\tp\n
+
+-----------------------------------------------------------------------------
+Changes on the RDML XML structures:
+
+- reactType
+
+    data: The element can now occur 0(!) to unlimited times.
+      As data can also be in the partitions element, there can be 
+      RDML files without data elements.
+
+    partitions: The new element can occur 0 to one times.
+      Reactions split up in partitions as in digital PCR must 
+      report data using this elements.
+
+      
+- partitionsType
+
+    volume: New element
+      This element contains the average volume of one partition 
+      in nanoliter (nl).
+
+    endPtTable: New optional element
+      This element contains the filename string. See fist section.
+
+    data (partitionDataType): The element can occur 1 to unlimited times.
+      As data can also be in the partitions element, there can be
+      RDML files without data elements.
+
+
+- partitionDataType
+
+    tar: New element
+      The target id.
+
+    excluded: New optional element
+      If present, the data element should be excluded. It should contain a
+      string explaining the reason for exclusion. Several reasons for
+      exclusion should be seperated by semicolons ";".
+
+    note: New optional element
+      A note string similar to "excluded". It may contain a string with notes
+      to the data element which do not lead to exclusion of the entry.
+      Several notes should be seperated by semicolons ";".
+
+    pos: New element
+      Positive partitions - The number of positive partitions.
+
+    neg: New element
+      Negative partitions - The number of negative partitions.
+
+    undef: New optional element
+      Undefined partitions - The number of undefined or not yet scored partitions.
+
+    excl: New optional element
+      Excluded partitions - The number of excluded partitions.
+
+    conc: New optional element
+      Concentration - The concentration in copies per microliter reaction mix.
+
+
+- dataType
+
+    ampEffMet: New element
+      Amplification efficiency method as free text.
+
+    N0: New element
+      Pronounced N-zero. Target quantity or starting concentration per
+      reaction, expressed in calculated arbitrary fluorescence units.
+      Negative values are used to express following conditions:
+      Not Available: -1.0
+
+    ampEff: New element
+      Amplification efficiency should as the fold-increase of DNA per
+      cycle (the base of the exponential function), for example 1.95
+      for 95% efficiency.
+      If absent, the ideal efficiency of 2.0 should be used for
+      calculations.
+
+    ampEffSE: New element
+      The standard error of the value provided in "ampEff" should be given.
+
+    corrF: New element
+      The correction factor indicating the fraction of the expected
+      product in all products. A factor of 0.25 indicates that the
+      expected product contributes only a quarter to the observed
+      results.
+      corrN0 = (N0 * corrF) / corrP
+      If absent, the ideal correction factor of 1.0 should be used
+      for calculations.
+
+    corrP: New element
+      The correction factor to correct for inter run differences
+      within this experiment.
+      corrN0 = (N0 * corrF) / corrP
+      If absent, the ideal correction factor of 1.0 should be used
+      for calculations.
+      Negative values are used to express following conditions:
+      Not Available: -1.0
+
+    corrCq: New element
+      Corrected quantification cycle - The corrected calculated fractional
+      PCR cycle used for downstream quantification.
+      Negative values are used to express following conditions:
+      Not Available: -1.0
+
+    meltTemp: New element
+      The melting temperature in degrees Celsius of the amplified amplicon.
+
+    note: New element
+      A note string similar to "excl". It may contain a string with notes
+      to the data element which do not lead to exclusion of the entry.
+      Several notes should be seperated by semicolons ";".
+
+
+- targetType
+
+    meltingTemperature: New optional element
+      The melting temperature in degrees Celsius of the amplified amplicon.
+
+- dyeType
+
+    dyeChemistry: New optional element
+      The monitoring chemistry of this dye. The options are:
+        - non-saturating DNA binding dye (SYBR Green I)
+        - saturating DNA binding dye (Eva Green, LC Green Plus, BEBO, Syto9)
+        - hybridization probe (Molecular Beacon, Light-Up probes, BHQnova Probe)
+        - hydrolysis probe (TaqMan, NuPCR)
+        - labelled forward primer (LUX primer)
+        - labelled reverse primer (Scorpion probe, Sunrise probe, Amplifluor Universal detection system)
+        - DNA-zyme probe (QZyme probe)
+
+- sampleType
+
+    type: Uses new element sampleTargetType and can occur 0 to unlimited times.
+      The same sample could have the sampleTypeType pos for one target and ntp
+      for a different target. Therefor several entries are allowed and can be
+      linked to a target. If no target is given, only one entry should be
+      present valid for all targets in this run.
+      If the element type is absent, the sample type is "unkn" (default value).
+
+    quantity: The element can occur 1 to unlimited times. It can have the target
+      as attribute targetId.
+      The same sample could have the quantityType 1000 copies per microliter for one
+      target or 1 fold for all targets. Optical calibrators work independent of
+      targets. Therefor several entries with or without target are allowed and can be
+      linked to a target.
+
+-----------------------------------------------------------------------------
+Clarifications of existing elements without functional changes:
+
+
+      

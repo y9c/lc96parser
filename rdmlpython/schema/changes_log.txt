@@ -1,0 +1,218 @@
+Changes:
+
+- Added the documentation files, the license and a readme.
+
+- No changes on any schema.
+
+Changes in revision 71:
+
+- fixed unique tar @Id in data
+
+Changes in revision 70:
+
+- modified sample description
+
+- unique cycles in adp
+
+- unique temp in mdp
+
+- unique tarId in data
+
+Changes in revision 69:
+
+- dataType excl and exclExp joined together
+
+- Removed none from measureType
+
+Changes in revision 68:
+
+- Fixed a typo - lable to label
+
+- Made all dataCollectionSoftwareType non-optional
+
+Changes in revision 67:
+
+- Fixed a typo - only affects schema
+
+Changes in revision 66:
+
+- Finished renaming thermalCyclingCondition to thermalCyclingConditions
+
+Changes in revision 65:
+
+- Changed detectionLimit in target description (unit)
+
+Changes in revision 64:
+
+- Introduced detectionLimit in target (reviewers request)
+
+Changes in revision 63:
+
+- unique Experimenter IDs
+
+Changes in revision 62:
+
+- in rdml thermalCyclingCondition renamed to thermalCyclingConditions
+
+Changes in revision 61:
+
+- in run thermalCyclingConditionsId renamed to thermalCyclingConditions  and ID is attribute
+
+- in cdnaSynthesisMethod thermalCyclingConditionsId renamed to thermalCyclingConditions  and ID is attribute
+
+- in data tarId renamed to tar  and ID is attribute
+
+- in react sampleId renamed to sample  and ID is attribute
+
+- in thermalCyclingCondition experimenterId renamed to experimenter  and ID is attribute
+
+- in run experimenterId renamed to experimenter  and ID is attribute
+
+- documentReferencesType renamed to idReferencesType - should not change anything
+
+
+Changes in revision 58:
+
+- documentID are changed to document with attribute ID
+
+- quantityType Unit is changed to unit
+
+
+Changes in revision 51:
+
+- quantity and unit is one element
+
+- document is now all
+
+
+Changes in revision 49:
+
+- fixed some typos
+
+
+Changes in revision 48:
+
+- added a unit for quantity
+
+- fixed some typos
+
+
+Changes in revision 46:
+
+- changed all IDs and RDML version to attributes
+
+- made some IDs unique
+
+
+Changes in revision 45:
+
+- made xRefs unique (Big thanks to Daniel)
+
+
+Changes in revision 44:
+
+- Fixed typos in annotations (Thanks to Daniel)
+
+- Modified some annotations
+
+
+Changes in revision 43:
+
+- added Endpoint in data
+
+- ampEff in data is deleted
+
+- well is renamed to react (for reaction)
+
+- added explanation to the elements which are not crystal clear
+
+- added quantity in sample to allow absolute quantification of copies
+
+- deleted templateIsolationMethod
+
+- pcrFormat is not optional any more
+
+- in pcrFormat "undescribed format" is renamed to "free format"
+
+
+Changes in revision 42:
+
+- organism in target removed
+
+- rtPrimerDbId in target removed
+
+- annotation in experiment removed
+
+- Annotation in run removed, subelements are now in run
+
+- backgroundDeterminationMethod, cqDetectionMethod and 
+  thermalCyclingConditionsId are now in run
+
+
+Changes in revision 41:
+
+- cqDetectionMethod has additional type "other" (Jans tip)
+
+- primingMethod has additional type "oligo-dt and random" (Jans tip)
+
+- in sample templateQuantity and templateQuality were split up in 
+  two fields, one for RNA the other for DNA.  (Jans tip)
+
+
+Changes in revision 40:
+
+- samples also have a xRef now.
+
+- changed order: in teargetType xRef moved behind documentation. 
+
+- all elements in cdnaSynthesisMethodType are optional for increased flexibility.
+
+- dnaseTreatment was moved from sample to cdnaSynthesisMethodType because a 
+  DNAse treatment makes only sense in a cDNA synthesis context.
+
+- in dataCollectionSoftwareType thermalCyclingConditionsId can occur only once.
+
+- cdnaSynthesisMethodType has a thermalCyclingConditionsId for cDNA synthesis.
+
+- added an documentationID in annotationType 
+
+Changes in revision 38:
+
+- all IDs have to be at least 1 letter long (Thanks Daniel!)
+
+- changed order in sampleType to have description and documentation following ID
+
+- changed order in targetType to have description and documentation following ID
+
+- added documentationID in targetType, experimentType, sampleType,
+  thermalCyclingConditionType to link to one or unlimited documentationType.
+
+- added documentationType in rdml (similar to samples and targets)
+
+- rdmlIdType: added optional element MD5hash
+
+
+Changes in revision 37:
+
+- added rdml: namespace everywhere
+
+- fixed error of sampleIdKeyRef
+
+- fixed errors of keyRef
+
+
+Changes in revision 36:
+
+- sequenceType: string has now IUPAC case matching 
+
+- targetType: also has a description string now
+
+- oligoType: The sequence is not optional any more
+- sequencesType: Forward primer, reverse primer and amplicon are optional
+  This allows to specify any combination of primers and amplicons.
+  
+- experimentType: name element renamed to description.
+
+- thermalCyclingConditionType: name element renamed to description.
+
+Last revision 35 was from 23/6/08
