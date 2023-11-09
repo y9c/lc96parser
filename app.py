@@ -82,12 +82,12 @@ if uploaded_file is not None:
                 use_container_width=True,
                 height=(result_table.shape[0] + 1) * 35 + 3,
             )
-            df_xlsx = to_excel(result_table)
-            st.download_button(
-                label="📥 Download Current Result",
-                data=df_xlsx,
-                file_name=name_base + ".xlsx",
-            )
+            # df_xlsx = to_excel(result_table)
+            # st.download_button(
+            #     label="📥 Download Current Result",
+            #     data=df_xlsx,
+            #     file_name=name_base + ".xlsx",
+            # )
 
         except Exception as e:
             st.error(f"An error occurred while parsing the lc96p file: {e}")
