@@ -76,6 +76,7 @@ if uploaded_file is not None:
             st.plotly_chart(fig, use_container_width=True, height=550)
 
             st.subheader("Melt curves", divider="rainbow")
+            melt_table = melt_table - melt_table.shift(-1)
             fig = px.line(melt_table, x=melt_table.index, y=melt_table.columns)
             fig.update_layout(
                 clickmode="event+select",
