@@ -64,6 +64,11 @@ def run_lrp(input_file):
         .set_index("Well")
         .iloc[:, 6:]
     ).T
+    melt_table = (
+        pd.read_csv(io.StringIO(cli_run.export_table("melt")), sep="\t")
+        .set_index("Well")
+        .iloc[:, 6:]
+    ).T
     amp_table.index = amp_table.index.astype(int)
 
     cli_result = cli_run.linRegPCR(
@@ -87,7 +92,7 @@ def run_lrp(input_file):
         pd.read_csv(io.StringIO(cli_result["resultsCSV"]), sep="\t")
     )
 
-    return amp_table, result_table
+    return amp_table, melt_table, result_table
 
 
 # create 3 files for each input
@@ -145,8 +150,9 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         sys.exit("Usage: run.py input_file.lc96p")
     input_file = sys.argv[1]
-    amp_table, result_table = run_lrp(input_file)
+    amp_table, melt_table, result_table = run_lrp(input_file)
     print(amp_table)
+    print(melt_table)
     print(result_table)
     rdml_file = input_file.rsplit(".", 1)[0] + ".rdml"
     excel_file = input_file.rsplit(".", 1)[0] + ".xlsx"

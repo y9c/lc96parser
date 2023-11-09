@@ -51,11 +51,32 @@ if uploaded_file is not None:
         temp_file_path = temp_file.name
     with st.spinner("Converting the file... Please wait."):
         try:
-            amp_table, result_table = run_lrp(temp_file_path)
-            # st.line_chart(amp_table)
+            amp_table, melt_table, result_table = run_lrp(temp_file_path)
 
             st.subheader("Amp curves", divider="rainbow")
             fig = px.line(amp_table, x=amp_table.index, y=amp_table.columns)
+            fig.update_layout(
+                clickmode="event+select",
+                legend=dict(
+                    orientation="h",
+                    yanchor="top",
+                    y=-0.12,
+                    xanchor="center",
+                    x=0.5,
+                    traceorder="normal",
+                    bgcolor=None,
+                    borderwidth=0,
+                    itemsizing="constant",
+                    tracegroupgap=0,
+                    entrywidth=1 / 12,
+                    entrywidthmode="fraction",
+                ),
+                height=550,
+            )
+            st.plotly_chart(fig, use_container_width=True, height=550)
+
+            st.subheader("Melt curves", divider="rainbow")
+            fig = px.line(melt_table, x=melt_table.index, y=melt_table.columns)
             fig.update_layout(
                 clickmode="event+select",
                 legend=dict(
