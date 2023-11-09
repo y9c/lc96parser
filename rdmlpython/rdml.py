@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 
-import sys
+import argparse
+import csv
+import datetime
 import io
+import json
+import math
 import os
 import re
-import datetime
-import zipfile
+import sys
 import tempfile
-import argparse
-import math
 import warnings
-import json
-import csv
+import zipfile
+
 import numpy as np
 import scipy.stats as scp
+from lxml import etree as et
 from matplotlib.backends.backend_svg import FigureCanvasSVG as figSVG
 from matplotlib.figure import Figure as plt_fig
-from lxml import etree as et
 
 
 def get_rdml_lib_version():
@@ -44,7 +45,7 @@ class NpEncoder(json.JSONEncoder):
 
 
 class RdmlError(Exception):
-    """Basic exception for errors raised by the RDML-Python library"""
+    """Basic exception for errors raised by the RDML-Python library."""
 
     def __init__(self, message):
         Exception.__init__(self, message)
@@ -53,7 +54,7 @@ class RdmlError(Exception):
 
 
 class secondError(RdmlError):
-    """Just to have, not used yet"""
+    """Just to have, not used yet."""
 
     def __init__(self, message):
         RdmlError.__init__(self, message)
@@ -228,7 +229,8 @@ def _value_to_booldic(value):
 
 
 def _get_first_child_by_pos_or_id(base, tag, by_id, by_pos):
-    """Get a child element of the base node with a given tag and position or id.
+    """Get a child element of the base node with a given tag and position or
+    id.
 
     Args:
         base: The base node element. (lxml node)
@@ -241,18 +243,26 @@ def _get_first_child_by_pos_or_id(base, tag, by_id, by_pos):
     """
 
     if by_id is None and by_pos is None:
-        raise RdmlError("Either an " + tag + " id or a position must be provided.")
+        raise RdmlError(
+            "Either an " + tag + " id or a position must be provided."
+        )
     if by_id is not None and by_pos is not None:
-        raise RdmlError("Only an " + tag + " id or a position can be provided.")
+        raise RdmlError(
+            "Only an " + tag + " id or a position can be provided."
+        )
     allChildren = _get_all_children(base, tag)
     if by_id is not None:
         for node in allChildren:
             if node.get("id") == by_id:
                 return node
-        raise RdmlError("The " + tag + " id: " + by_id + " was not found in RDML file.")
+        raise RdmlError(
+            "The " + tag + " id: " + by_id + " was not found in RDML file."
+        )
     if by_pos is not None:
         if by_pos < 0 or by_pos > len(allChildren) - 1:
-            raise RdmlError("The " + tag + " position " + by_pos + " is out of range.")
+            raise RdmlError(
+                "The " + tag + " position " + by_pos + " is out of range."
+            )
         return allChildren[by_pos]
 
 
@@ -333,7 +343,8 @@ def _get_number_of_children(base, tag):
 
 
 def _check_unique_id(base, tag, id):
-    """Find all child elements with a given group and check if the id is already used.
+    """Find all child elements with a given group and check if the id is
+    already used.
 
     Args:
         base: The base node element. (lxml node)
@@ -394,7 +405,9 @@ def _add_new_subelement(base, basetag, tag, text, opt):
             et.SubElement(base, tag).text = text
 
 
-def _change_subelement(base, tag, xmlkeys, value, opt, vtype, id_as_element=False):
+def _change_subelement(
+    base, tag, xmlkeys, value, opt, vtype, id_as_element=False
+):
     """Change the value of the element with a given tag.
 
     Args:
@@ -530,7 +543,8 @@ def _move_subelement_pos(base, tag, oldpos, xmlkeys, position):
 
 
 def _get_tag_pos(base, tag, xmlkeys, pos):
-    """Returns a position were to add a subelement with the given tag inc. pos offset.
+    """Returns a position were to add a subelement with the given tag inc. pos
+    offset.
 
     Args:
         base: The base node element. (lxml node)
@@ -683,7 +697,8 @@ def _wellRangeToList(wells, columns):
 
 
 def _sampleTypeToDics(rootEl):
-    """Translates all ele in samples to dic {sample Id}{target Id} with ele value.
+    """Translates all ele in samples to dic {sample Id}{target Id} with ele
+    value.
 
     Args:
         rootEl: The root node of the rdml file
@@ -719,7 +734,8 @@ def _sampleTypeToDics(rootEl):
 
 
 def _lrp_linReg(xIn, yUse):
-    """A function which calculates the slope or the intercept by linear regression.
+    """A function which calculates the slope or the intercept by linear
+    regression.
 
     Args:
         xIn: The numpy array of the cycles
@@ -777,11 +793,15 @@ def _lrp_findStopCyc(fluor, aRow):
     fluorShift[0] = np.nan
     firstDerivative = fluor[aRow] - fluorShift
     if np.isfinite(firstDerivative).any():
-        FDMaxCyc = np.nanargmax(firstDerivative, axis=0) + 1  # Cycles so +1 to array
+        FDMaxCyc = (
+            np.nanargmax(firstDerivative, axis=0) + 1
+        )  # Cycles so +1 to array
     else:
         return fluor.shape[1]
 
-    firstDerivativeShift = np.roll(firstDerivative, -1, axis=0)  # Shift to left
+    firstDerivativeShift = np.roll(
+        firstDerivative, -1, axis=0
+    )  # Shift to left
     firstDerivativeShift[-1] = np.nan
     secondDerivative = firstDerivativeShift - firstDerivative
 
@@ -809,7 +829,10 @@ def _lrp_findStopCyc(fluor, aRow):
                 secondDerivative[cycInRange - 2 : cycInRange + 1], axis=0
             )
         # The > 0.000000000001 is to avoid float differences to the pascal version
-        if not np.isnan(tempMeanSD) and (tempMeanSD - maxMeanSD) > 0.000000000001:
+        if (
+            not np.isnan(tempMeanSD)
+            and (tempMeanSD - maxMeanSD) > 0.000000000001
+        ):
             maxMeanSD = tempMeanSD
             stopCyc = cycInRange
     if stopCyc + 2 >= fluor.shape[1]:
@@ -868,7 +891,8 @@ def _lrp_findStartCyc(fluor, aRow, stopCyc):
 
 
 def _lrp_testSlopes(fluor, aRow, stopCyc, startCycFix):
-    """Splits the values and calculates a slope for the upper and the lower half.
+    """Splits the values and calculates a slope for the upper and the lower
+    half.
 
     Args:
         fluor: The array with the fluorescence values
@@ -927,7 +951,8 @@ def _lrp_testSlopes(fluor, aRow, stopCyc, startCycFix):
 
 
 def _lrp_lastCycMeanMax(fluor, vecSkipSample, vecNoPlateau):
-    """A function which calculates the mean of the max fluor in the last ten cycles.
+    """A function which calculates the mean of the max fluor in the last ten
+    cycles.
 
     Args:
         fluor: The array with the fluorescence values
@@ -954,7 +979,8 @@ def _lrp_lastCycMeanMax(fluor, vecSkipSample, vecNoPlateau):
 def _lrp_meanPcrEff(
     tarGroup, vecTarget, pcrEff, vecSkipSample, vecNoPlateau, vecShortLogLin
 ):
-    """A function which calculates the mean efficiency of the selected target group excluding bad ones.
+    """A function which calculates the mean efficiency of the selected target
+    group excluding bad ones.
 
     Args:
         tarGroup: The target number
@@ -991,7 +1017,8 @@ def _lrp_meanPcrEff(
 
 
 def _lrp_startStopInWindow(fluor, aRow, upWin, lowWin):
-    """Find the start and the stop of the part of the curve which is inside the window.
+    """Find the start and the stop of the part of the curve which is inside the
+    window.
 
     Args:
         fluor: The array with the fluorescence values
@@ -1015,7 +1042,10 @@ def _lrp_startStopInWindow(fluor, aRow, upWin, lowWin):
         return startCyc, startCyc, True
 
     # If is true if outside the window
-    if fluor[aRow, startCyc - 1] > upWin or fluor[aRow, stopMaxCyc - 1] < lowWin:
+    if (
+        fluor[aRow, startCyc - 1] > upWin
+        or fluor[aRow, stopMaxCyc - 1] < lowWin
+    ):
         notInWindow = True
         if fluor[aRow, startCyc - 1] > upWin:
             startWinCyc = startCyc
@@ -1043,7 +1073,8 @@ def _lrp_startStopInWindow(fluor, aRow, upWin, lowWin):
 
 
 def _lrp_paramInWindow(fluor, aRow, upWin, lowWin):
-    """Calculates slope, nNull, PCR efficiency and mean x/y for the curve part in the window.
+    """Calculates slope, nNull, PCR efficiency and mean x/y for the curve part
+    in the window.
 
     Args:
         fluor: The array with the fluorescence values
@@ -1122,7 +1153,8 @@ def _lrp_allParamInWindow(
     vecNoAmplification,
     vecBaselineError,
 ):
-    """A function which calculates the mean of the max fluor in the last ten cycles.
+    """A function which calculates the mean of the max fluor in the last ten
+    cycles.
 
     Args:
         fluor: The array with the fluorescence values
@@ -1180,7 +1212,8 @@ def _lrp_allParamInWindow(
 def _lrp_meanStopFluor(
     fluor, tarGroup, vecTarget, stopCyc, vecSkipSample, vecNoPlateau
 ):
-    """Return the mean of the stop fluor or the max fluor if all rows have no plateau.
+    """Return the mean of the stop fluor or the max fluor if all rows have no
+    plateau.
 
     Args:
         fluor: The array with the fluorescence values
@@ -1226,7 +1259,7 @@ def _lrp_meanStopFluor(
 
 
 def _lrp_maxStartFluor(fluor, tarGroup, vecTarget, startCyc, vecSkipSample):
-    """Return the maximum of the start fluorescence
+    """Return the maximum of the start fluorescence.
 
     Args:
         fluor: The array with the fluorescence values
@@ -1289,7 +1322,9 @@ def _lrp_setLogWin(
     return upWin, lowWin
 
 
-def _lrp_logStepStop(fluor, tarGroup, vecTarget, stopCyc, vecSkipSample, vecNoPlateau):
+def _lrp_logStepStop(
+    fluor, tarGroup, vecTarget, stopCyc, vecSkipSample, vecNoPlateau
+):
     """Calculates the log of the fluorescence increase at the stop cycle.
 
     Args:
@@ -1345,7 +1380,8 @@ def _lrp_setWoL(
     vecShortLogLin,
     vecIsUsedInWoL,
 ):
-    """Find the window with the lowest variation in PCR efficiency and calculate its values.
+    """Find the window with the lowest variation in PCR efficiency and
+    calculate its values.
 
     Args:
         fluor: The array with the fluorescence values
@@ -1621,7 +1657,14 @@ def _lrp_setWoL(
         else:
             threshold[tarGroup] = 0.5 * np.round(1000 * upWin[tarGroup]) / 1000
 
-        indMeanX, indMeanY, pcrEff, nNulls, nInclu, correl = _lrp_allParamInWindow(
+        (
+            indMeanX,
+            indMeanY,
+            pcrEff,
+            nNulls,
+            nInclu,
+            correl,
+        ) = _lrp_allParamInWindow(
             fluor,
             tarGroup,
             vecTarget,
@@ -1688,7 +1731,8 @@ def _lrp_assignNoPlateau(
     vecShortLogLin,
     vecIsUsedInWoL,
 ):
-    """Assign no plateau again and possibly recalculate WoL if new no plateau was found.
+    """Assign no plateau again and possibly recalculate WoL if new no plateau
+    was found.
 
     Args:
         fluor: The array with the fluorescence values
@@ -1721,9 +1765,13 @@ def _lrp_assignNoPlateau(
     newNoPlateau = False
     for aRow in range(0, fluor.shape[0]):
         if (tarGroup is None or tarGroup == vecTarget[aRow]) and not (
-            vecNoAmplification[aRow] or vecBaselineError[aRow] or vecNoPlateau[aRow]
+            vecNoAmplification[aRow]
+            or vecBaselineError[aRow]
+            or vecNoPlateau[aRow]
         ):
-            expectedFluor = nNulls[aRow] * np.power(pcrEff[aRow], fluor.shape[1])
+            expectedFluor = nNulls[aRow] * np.power(
+                pcrEff[aRow], fluor.shape[1]
+            )
             if expectedFluor / fluor[aRow, fluor.shape[1] - 1] < 5:
                 newNoPlateau = True
                 vecNoPlateau[aRow] = True
@@ -1782,7 +1830,8 @@ def _lrp_assignNoPlateau(
 
 
 def _lrp_removeOutlier(data, vecNoPlateau, alpha=0.05):
-    """A function which calculates the skewness and Grubbs test to identify outliers ignoring nan.
+    """A function which calculates the skewness and Grubbs test to identify
+    outliers ignoring nan.
 
     Args:
         data: The numpy array with the data
@@ -1806,7 +1855,8 @@ def _lrp_removeOutlier(data, vecNoPlateau, alpha=0.05):
             std = np.nanstd(oData, ddof=1)
             skewness = scp.skew(oData, bias=False, nan_policy="omit")
             skewness_SE = np.sqrt(
-                (6 * count * (count - 1)) / ((count - 2) * (count + 1) * (count + 3))
+                (6 * count * (count - 1))
+                / ((count - 2) * (count + 1) * (count + 3))
             )
             skewness_t = np.abs(skewness) / skewness_SE
             skewness_P = scp.t.sf(skewness_t, df=np.power(10, 10)) * 2
@@ -1815,7 +1865,8 @@ def _lrp_removeOutlier(data, vecNoPlateau, alpha=0.05):
                 # It's skewed!
                 grubbs_t = scp.t.ppf(1 - (alpha / count) / 2, (count - 2))
                 grubbs_Gcrit = ((count - 1) / np.sqrt(count)) * np.sqrt(
-                    np.power(grubbs_t, 2) / ((count - 2) + np.power(grubbs_t, 2))
+                    np.power(grubbs_t, 2)
+                    / ((count - 2) + np.power(grubbs_t, 2))
                 )
                 if skewness > 0.0:
                     data_max = np.nanmax(oData)
@@ -1853,7 +1904,9 @@ def _lrp_removeOutlier(data, vecNoPlateau, alpha=0.05):
 
 
 def _mca_smooth(tempList, rawFluor):
-    """A function to smooth the melt curve date based on Friedmans supersmoother.
+    """A function to smooth the melt curve date based on Friedmans
+    supersmoother.
+
        # https://www.slac.stanford.edu/pubs/slacpubs/3250/slac-pub-3477.pdf
 
     Args:
@@ -1890,12 +1943,24 @@ def _mca_smooth(tempList, rawFluor):
 
     countUp = 0
     for fluor in padFluor:
-        [res_s_a, res_s_t] = _mca_sub_smooth(padTemp, fluor, span_s, vsmlsq, True)
-        [res_s_b, _unused] = _mca_sub_smooth(padTemp, res_s_t, span_m, vsmlsq, False)
-        [res_s_c, res_s_t] = _mca_sub_smooth(padTemp, fluor, span_m, vsmlsq, True)
-        [res_s_d, _unused] = _mca_sub_smooth(padTemp, res_s_t, span_m, vsmlsq, False)
-        [res_s_e, res_s_t] = _mca_sub_smooth(padTemp, fluor, span_l, vsmlsq, True)
-        [res_s_f, _unused] = _mca_sub_smooth(padTemp, res_s_t, span_m, vsmlsq, False)
+        [res_s_a, res_s_t] = _mca_sub_smooth(
+            padTemp, fluor, span_s, vsmlsq, True
+        )
+        [res_s_b, _unused] = _mca_sub_smooth(
+            padTemp, res_s_t, span_m, vsmlsq, False
+        )
+        [res_s_c, res_s_t] = _mca_sub_smooth(
+            padTemp, fluor, span_m, vsmlsq, True
+        )
+        [res_s_d, _unused] = _mca_sub_smooth(
+            padTemp, res_s_t, span_m, vsmlsq, False
+        )
+        [res_s_e, res_s_t] = _mca_sub_smooth(
+            padTemp, fluor, span_l, vsmlsq, True
+        )
+        [res_s_f, _unused] = _mca_sub_smooth(
+            padTemp, res_s_t, span_m, vsmlsq, False
+        )
 
         res_s_fin = np.zeros(res_s_a.shape, dtype=np.float64)
         for thirdQuarter in range(1, n + 1):
@@ -1909,7 +1974,9 @@ def _mca_smooth(tempList, rawFluor):
             if res_s_f[thirdQuarter] < resmin:
                 res_s_fin[thirdQuarter] = span_l
 
-        [res_s_bb, _unused] = _mca_sub_smooth(padTemp, res_s_fin, span_m, vsmlsq, False)
+        [res_s_bb, _unused] = _mca_sub_smooth(
+            padTemp, res_s_fin, span_m, vsmlsq, False
+        )
 
         res_s_cc = np.zeros(res_s_a.shape, dtype=np.float64)
         for thirdQuarter in range(1, n + 1):
@@ -1935,7 +2002,9 @@ def _mca_smooth(tempList, rawFluor):
                 ] + f * res_s_a[thirdQuarter]
 
         # final smoothing of combined optimally smoothed values in res_s_cc[] into smo[]
-        [res_s_t, _unused] = _mca_sub_smooth(padTemp, res_s_cc, span_s, vsmlsq, False)
+        [res_s_t, _unused] = _mca_sub_smooth(
+            padTemp, res_s_cc, span_s, vsmlsq, False
+        )
         smoothFluor[countUp] = res_s_t[1:]
         countUp += 1
 
@@ -1943,7 +2012,9 @@ def _mca_smooth(tempList, rawFluor):
 
 
 def _mca_sub_smooth(temperature, fluor, span, vsmlsq, saveVarianceData):
-    """A function to smooth the melt curve date based on Friedmans supersmoother.
+    """A function to smooth the melt curve date based on Friedmans
+    supersmoother.
+
        # https://www.slac.stanford.edu/pubs/slacpubs/3250/slac-pub-3477.pdf
 
     Args:
@@ -2040,7 +2111,8 @@ def _mca_sub_smooth(temperature, fluor, span, vsmlsq, saveVarianceData):
 
 
 def _mca_linReg(xIn, yUse, start, stop):
-    """A function which calculates the slope or the intercept by linear regression.
+    """A function which calculates the slope or the intercept by linear
+    regression.
 
     Args:
         xIn: The numpy array of the temperatures
@@ -2135,7 +2207,9 @@ def _cleanErrorString(inStr, cleanStyle):
         outStr = outStr.replace(
             "product with different melting temperatures detected", ""
         )
-        outStr = outStr.replace("no product with expected melting temperature", "")
+        outStr = outStr.replace(
+            "no product with expected melting temperature", ""
+        )
         outStr = outStr.replace("product detected in negative control", "")
     else:
         strList = inStr.split(";")
@@ -2261,7 +2335,9 @@ def runStatistics(statTarGroup, parametric, translateGrp):
                 for col in range(0, len(statTarGroup[row])):
                     gridGroup.append(row)
                     gridValue.append(statTarGroup[row][col])
-                    grid_Y2.append(statTarGroup[row][col] * statTarGroup[row][col])
+                    grid_Y2.append(
+                        statTarGroup[row][col] * statTarGroup[row][col]
+                    )
                     groupRes[row]["n"] += 1
                     groupRes[row]["sumY"] += statTarGroup[row][col]
                     groupRes[row]["sumY2"] += (
@@ -2275,12 +2351,16 @@ def runStatistics(statTarGroup, parametric, translateGrp):
             stat_quant4 = 0.0
             for row in range(0, len(groupRes)):
                 groupRes[row]["sumY2_n"] = (
-                    groupRes[row]["sumY"] * groupRes[row]["sumY"] / groupRes[row]["n"]
+                    groupRes[row]["sumY"]
+                    * groupRes[row]["sumY"]
+                    / groupRes[row]["n"]
                 )
                 stat_quant1 += groupRes[row]["sumY"]
                 stat_quant2 += groupRes[row]["sumY2"]
                 stat_quant3 += groupRes[row]["sumY2_n"]
-                groupRes[row]["mean"] = groupRes[row]["sumY"] / groupRes[row]["n"]
+                groupRes[row]["mean"] = (
+                    groupRes[row]["sumY"] / groupRes[row]["n"]
+                )
                 groupRes[row]["var"] = (
                     groupRes[row]["sumY2"] - groupRes[row]["sumY2_n"]
                 ) / (groupRes[row]["n"] - 1)
@@ -2351,7 +2431,9 @@ def runStatistics(statTarGroup, parametric, translateGrp):
                                         0.8843
                                         - 0.2368 * stat_grp_range
                                         - 1.214 / stat_df_within
-                                        + 1.208 * stat_grp_range / stat_df_within
+                                        + 1.208
+                                        * stat_grp_range
+                                        / stat_df_within
                                     )
                                     + np.sqrt(2)
                                 )
@@ -2385,7 +2467,9 @@ def runStatistics(statTarGroup, parametric, translateGrp):
                 grpGridMultiComp[0].append(translateGrp[groupIncreasMean[row]])
             grpGridMultiComp.append(["", "mean"])
             for row in range(0, len(statTarGroup)):
-                grpGridMultiComp[1].append(groupRes[groupIncreasMean[row]]["mean"])
+                grpGridMultiComp[1].append(
+                    groupRes[groupIncreasMean[row]]["mean"]
+                )
             for row in range(0, len(statTarGroup)):
                 grpGridMultiComp.append(
                     [
@@ -2396,7 +2480,9 @@ def runStatistics(statTarGroup, parametric, translateGrp):
                 for col in range(0, len(statTarGroup)):
                     if grpGridCriticDiff[row][col] == "":
                         grpGridMultiComp[row + 2].append("-")
-                    elif grpGridObsDiff[row][col] > grpGridCriticDiff[row][col]:
+                    elif (
+                        grpGridObsDiff[row][col] > grpGridCriticDiff[row][col]
+                    ):
                         grpGridMultiComp[row + 2].append("*")
                     else:
                         grpGridMultiComp[row + 2].append("ns")
@@ -2463,18 +2549,27 @@ def runStatistics(statTarGroup, parametric, translateGrp):
             # Calculate the group results
             for row in range(0, len(groupRes)):
                 groupRes[row]["rsum2_n"] = (
-                    groupRes[row]["rsum"] * groupRes[row]["rsum"] / groupRes[row]["n"]
+                    groupRes[row]["rsum"]
+                    * groupRes[row]["rsum"]
+                    / groupRes[row]["n"]
                 )
                 statres_s1 += groupRes[row]["rsum2_n"]
             # Final calculations
             statres_n3 = (
-                statres_total_n * (statres_total_n + 1) * (statres_total_n + 1) / 4
+                statres_total_n
+                * (statres_total_n + 1)
+                * (statres_total_n + 1)
+                / 4
             )
-            statres_s2 = (1 / (statres_total_n - 1)) * (statres_sqrsum - statres_n3)
+            statres_s2 = (1 / (statres_total_n - 1)) * (
+                statres_sqrsum - statres_n3
+            )
             statres_tt = (1 / statres_s2) * (statres_s1 - statres_n3)
             statres_df = len(statTarGroup) - 1
             statres_prob = 1 - scp.chi2.cdf(statres_tt, df=statres_df)
-            statres_t = scp.t.ppf(1 - 0.05 / 2.0, statres_total_n - len(statTarGroup))
+            statres_t = scp.t.ppf(
+                1 - 0.05 / 2.0, statres_total_n - len(statTarGroup)
+            )
             statres_SD = statres_t * np.sqrt(
                 (
                     statres_s2
@@ -2503,7 +2598,9 @@ def runStatistics(statTarGroup, parametric, translateGrp):
                     else:
                         grpGridCriticDiff[row].append(
                             statres_SD
-                            * np.sqrt(1 / groupRes[row]["n"] + 1 / groupRes[col]["n"])
+                            * np.sqrt(
+                                1 / groupRes[row]["n"] + 1 / groupRes[col]["n"]
+                            )
                         )
             # Calculate multiple comparison result
             grpGridMultiComp.append(["group", ""])
@@ -2513,11 +2610,15 @@ def runStatistics(statTarGroup, parametric, translateGrp):
             for row in range(0, len(statTarGroup)):
                 grpGridMultiComp[1].append(groupRes[row]["median"])
             for row in range(0, len(statTarGroup)):
-                grpGridMultiComp.append([translateGrp[row], groupRes[row]["median"]])
+                grpGridMultiComp.append(
+                    [translateGrp[row], groupRes[row]["median"]]
+                )
                 for col in range(0, len(statTarGroup)):
                     if grpGridCriticDiff[row][col] == "":
                         grpGridMultiComp[row + 2].append("-")
-                    elif grpGridRanksum[row][col] > grpGridCriticDiff[row][col]:
+                    elif (
+                        grpGridRanksum[row][col] > grpGridCriticDiff[row][col]
+                    ):
                         grpGridMultiComp[row + 2].append("*")
                     else:
                         grpGridMultiComp[row + 2].append("ns")
@@ -2525,7 +2626,9 @@ def runStatistics(statTarGroup, parametric, translateGrp):
     return ret
 
 
-def webAppRunStatistics(data, parametric=False, seperator="\t", replaceComma=True):
+def webAppRunStatistics(
+    data, parametric=False, seperator="\t", replaceComma=True
+):
     replaceComma = _string_to_bool(replaceComma, triple=False)
     goodData = []
     foundGrp = {}
@@ -2553,7 +2656,7 @@ def webAppRunStatistics(data, parametric=False, seperator="\t", replaceComma=Tru
 
 
 class Rdml:
-    """RDML-Python library
+    """RDML-Python library.
 
     The root element used to open, write, read and edit RDML files.
 
@@ -2563,7 +2666,8 @@ class Rdml:
     """
 
     def __init__(self, filename=None):
-        """Inits an empty RDML instance with new() or load RDML file with load().
+        """Inits an empty RDML instance with new() or load RDML file with
+        load().
 
         Args:
             self: The class self parameter.
@@ -2651,7 +2755,8 @@ class Rdml:
         return
 
     def load(self, filename):
-        """Load an RDML file with decompression of rdml_data.xml or an XML file. Uses loadXMLString().
+        """Load an RDML file with decompression of rdml_data.xml or an XML
+        file. Uses loadXMLString().
 
         Args:
             self: The class self parameter.
@@ -2667,7 +2772,9 @@ class Rdml:
             try:
                 data = zf.read("rdml_data.xml").decode("utf-8")
             except KeyError:
-                raise RdmlError("No rdml_data.xml in compressed RDML file found.")
+                raise RdmlError(
+                    "No rdml_data.xml in compressed RDML file found."
+                )
             else:
                 self.loadXMLString(data)
             finally:
@@ -2678,10 +2785,13 @@ class Rdml:
                 if data:
                     self.loadXMLString(data)
                 else:
-                    raise RdmlError("File format error, not a valid RDML or XML file.")
+                    raise RdmlError(
+                        "File format error, not a valid RDML or XML file."
+                    )
 
     def load_any_zip(self, filename):
-        """Load an RDML file with decompression of first file. Uses loadXMLString().
+        """Load an RDML file with decompression of first file. Uses
+        loadXMLString().
 
         Args:
             self: The class self parameter.
@@ -2704,7 +2814,9 @@ class Rdml:
                 try:
                     data = zf.read(archiv_name).decode("utf-8")
                 except KeyError:
-                    raise RdmlError("No readable data in compressed RDML file found.")
+                    raise RdmlError(
+                        "No readable data in compressed RDML file found."
+                    )
                 except UnicodeDecodeError:
                     raise RdmlError(
                         "No readable unicode data in compressed RDML file found."
@@ -2713,9 +2825,13 @@ class Rdml:
                     self.loadXMLString(data)
             zf.close()
             if archiv_name == "":
-                raise RdmlError("No readable data in compressed RDML file found.")
+                raise RdmlError(
+                    "No readable data in compressed RDML file found."
+                )
         else:
-            raise RdmlError("File format error, no compressed RDML file found.")
+            raise RdmlError(
+                "File format error, no compressed RDML file found."
+            )
 
     def save(self, filename):
         """Save an RDML file with compression of rdml_data.xml.
@@ -2728,13 +2844,16 @@ class Rdml:
             No return value. Function may raise RdmlError if required.
         """
 
-        elem = _get_or_create_subelement(self._node, "dateUpdated", self.xmlkeys())
+        elem = _get_or_create_subelement(
+            self._node, "dateUpdated", self.xmlkeys()
+        )
         elem.text = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
         data = et.tostring(self._rdmlData, pretty_print=True)
         _writeFileInRDML(filename, "rdml_data.xml", data)
 
     def loadXMLString(self, data):
-        """Create RDML object from xml string. !ENTITY and DOCSTRINGS will be removed.
+        """Create RDML object from xml string. !ENTITY and DOCSTRINGS will be
+        removed.
 
         Args:
             self: The class self parameter.
@@ -2749,20 +2868,25 @@ class Rdml:
         data = re.sub(r"<\W*!ENTITY[^>]+>", "", data)
         data = re.sub(r"!ENTITY", "", data)
         try:
-            self._rdmlData = et.ElementTree(et.fromstring(data.encode("utf-8")))
+            self._rdmlData = et.ElementTree(
+                et.fromstring(data.encode("utf-8"))
+            )
             # Change to bytecode and defused?
         except et.XMLSyntaxError:
             raise RdmlError("XML load error, not a valid RDML or XML file.")
         self._node = self._rdmlData.getroot()
         if self._node.tag.replace("{http://www.rdml.org}", "") != "rdml":
-            raise RdmlError("Root element is not 'rdml', not a valid RDML or XML file.")
+            raise RdmlError(
+                "Root element is not 'rdml', not a valid RDML or XML file."
+            )
         rdml_version = self._node.get("version")
         # Remainder: Update version in new() and validate()
         if rdml_version not in ["1.0", "1.1", "1.2", "1.3"]:
             raise RdmlError("Unknown or unsupported RDML file version.")
 
     def validate(self, filename=None):
-        """Validate the RDML object against its schema or load file and validate it.
+        """Validate the RDML object against its schema or load file and
+        validate it.
 
         Args:
             self: The class self parameter.
@@ -2801,7 +2925,9 @@ class Rdml:
                 os.path.join(rdmlws, "schema", "RDML_v1_3_REC.xsd")
             )
         else:
-            notes += "RDML version:\tFalse\tUnknown schema version" + version + "\n"
+            notes += (
+                "RDML version:\tFalse\tUnknown schema version" + version + "\n"
+            )
             return notes
         notes += "RDML version:\tTrue\t" + version + "\n"
 
@@ -2810,15 +2936,22 @@ class Rdml:
         if result:
             notes += "Schema validation result:\tTrue\tRDML file is valid.\n"
         else:
-            notes += "Schema validation result:\tFalse\tRDML file is not valid.\n"
+            notes += (
+                "Schema validation result:\tFalse\tRDML file is not valid.\n"
+            )
         log = xmlschema.error_log
         for err in log:
             notes += "Schema validation error:\tFalse\t"
-            notes += "Line %s, Column %s: %s \n" % (err.line, err.column, err.message)
+            notes += "Line %s, Column %s: %s \n" % (
+                err.line,
+                err.column,
+                err.message,
+            )
         return notes
 
     def isvalid(self, filename=None):
-        """Validate the RDML object against its schema or load file and validate it.
+        """Validate the RDML object against its schema or load file and
+        validate it.
 
         Args:
             self: The class self parameter.
@@ -2891,7 +3024,9 @@ class Rdml:
 
         exp = _get_all_children(self._node, "thirdPartyExtensions")
         if len(exp) > 0:
-            ret.append('Migration to v1.1 deleted "thirdPartyExtensions" elements.')
+            ret.append(
+                'Migration to v1.1 deleted "thirdPartyExtensions" elements.'
+            )
         for node in exp:
             self._node.remove(node)
 
@@ -3106,7 +3241,9 @@ class Rdml:
                     exp3 = _get_all_children(node2, "react")
                     for node3 in exp3:
                         old_id = node3.get("id")
-                        old_letter = ord(re.sub(r"\d", "", old_id).upper()) - ord("A")
+                        old_letter = ord(
+                            re.sub(r"\d", "", old_id).upper()
+                        ) - ord("A")
                         old_nr = int(re.sub(r"\D", "", old_id))
                         newId = old_nr + old_letter * int(columns)
                         node3.attrib["id"] = str(newId)
@@ -3299,7 +3436,9 @@ class Rdml:
                     # No data element, no react element in v 1.2
                     exp5 = _get_all_children(node3, "data")
                     if len(exp5) == 0:
-                        hint = 'Migration to v1.2 deleted run "react" elements.'
+                        hint = (
+                            'Migration to v1.2 deleted run "react" elements.'
+                        )
                         node2.remove(node3)
 
                     exp4b = _get_all_children(node3, "data")
@@ -3310,9 +3449,7 @@ class Rdml:
                             node4.remove(node5)
                         exp5 = _get_all_children(node4, "N0")
                         for node5 in exp5:
-                            hint3 = (
-                                'Migration to v1.2 deleted react data "N0" elements.'
-                            )
+                            hint3 = 'Migration to v1.2 deleted react data "N0" elements.'
                             node4.remove(node5)
                         exp5 = _get_all_children(node4, "ampEff")
                         for node5 in exp5:
@@ -3324,15 +3461,11 @@ class Rdml:
                             node4.remove(node5)
                         exp5 = _get_all_children(node4, "corrF")
                         for node5 in exp5:
-                            hint6 = (
-                                'Migration to v1.2 deleted react data "corrF" elements.'
-                            )
+                            hint6 = 'Migration to v1.2 deleted react data "corrF" elements.'
                             node4.remove(node5)
                         exp5 = _get_all_children(node4, "corrP")
                         for node5 in exp5:
-                            hint7 = (
-                                'Migration to v1.2 deleted react data "corrP" elements.'
-                            )
+                            hint7 = 'Migration to v1.2 deleted react data "corrP" elements.'
                             node4.remove(node5)
                         exp5 = _get_all_children(node4, "corrCq")
                         for node5 in exp5:
@@ -3344,9 +3477,7 @@ class Rdml:
                             node4.remove(node5)
                         exp5 = _get_all_children(node4, "note")
                         for node5 in exp5:
-                            hint10 = (
-                                'Migration to v1.2 deleted react data "note" elements.'
-                            )
+                            hint10 = 'Migration to v1.2 deleted react data "note" elements.'
                             node4.remove(node5)
         if hint != "":
             ret.append(hint)
@@ -3390,7 +3521,9 @@ class Rdml:
                     hint3 = 'Migration to v1.2 deleted sample quantity "targetId" attribute.'
                 for elCount in range(1, len(exp2q)):
                     node1.remove(exp2q[elCount])
-                    hint4 = 'Migration to v1.2 deleted sample "quantity" elements.'
+                    hint4 = (
+                        'Migration to v1.2 deleted sample "quantity" elements.'
+                    )
         if hint != "":
             ret.append(hint)
         if hint2 != "":
@@ -3474,7 +3607,9 @@ class Rdml:
         for used_id in foundIds:
             if used_id not in presentIds:
                 self.new_therm_cyc_cons(id=used_id, newposition=0)
-                mess += "Recreated thermal cycling conditions: " + used_id + "\n"
+                mess += (
+                    "Recreated thermal cycling conditions: " + used_id + "\n"
+                )
         # Find lost experimenter
         foundIds = {}
         allTh = _get_all_children(self._node, "thermalCyclingConditions")
@@ -3643,7 +3778,8 @@ class Rdml:
         return mess
 
     def fixExclFalse(self):
-        """Searches in experiment-run-react-data for excl=false and deletes the elements.
+        """Searches in experiment-run-react-data for excl=false and deletes the
+        elements.
 
         Args:
             self: The class self parameter.
@@ -3669,12 +3805,17 @@ class Rdml:
                                 dataNode.remove(lastNode)
 
         if count > 0:
-            mess = "The element excl=false was removed " + str(count) + " times!\n"
+            mess = (
+                "The element excl=false was removed "
+                + str(count)
+                + " times!\n"
+            )
 
         return mess
 
     def fixDuplicateReact(self):
-        """Searches in experiment-run-react for duplicates and keeps only the first.
+        """Searches in experiment-run-react for duplicates and keeps only the
+        first.
 
         Args:
             self: The class self parameter.
@@ -3705,7 +3846,8 @@ class Rdml:
         return mess
 
     def fixTempsMeltcurve(self):
-        """Searches in experiment-run-react for different temps in one read and keeps the mean.
+        """Searches in experiment-run-react for different temps in one read and
+        keeps the mean.
 
         Args:
             self: The class self parameter.
@@ -3734,7 +3876,9 @@ class Rdml:
                         else:
                             if colCount != len(lastNodes):
                                 mess = "The wells have different number of temperatures in the "
-                                mess += "melting curve, fixing is not possible!\n"
+                                mess += (
+                                    "melting curve, fixing is not possible!\n"
+                                )
                                 return mess
                 # Read the temps in a matrix
                 allTemps = np.zeros((rowCount, colCount), dtype=np.float64)
@@ -3762,7 +3906,9 @@ class Rdml:
                         for mdp in lastNodes:
                             currCol += 1
                             editNode = _get_first_child(mdp, "tmp")
-                            editNode.text = str("%.2f" % float(meanTemp[currCol]))
+                            editNode.text = str(
+                                "%.2f" % float(meanTemp[currCol])
+                            )
                             count += 1
         if count > 0:
             mess = (
@@ -3789,7 +3935,9 @@ class Rdml:
             ret.append(Rdmlid(node))
         return ret
 
-    def new_rdmlid(self, publisher, serialNumber, MD5Hash=None, newposition=None):
+    def new_rdmlid(
+        self, publisher, serialNumber, MD5Hash=None, newposition=None
+    ):
         """Creates a new rdml id element.
 
         Args:
@@ -3805,7 +3953,9 @@ class Rdml:
 
         new_node = et.Element("id")
         _add_new_subelement(new_node, "id", "publisher", publisher, False)
-        _add_new_subelement(new_node, "id", "serialNumber", serialNumber, False)
+        _add_new_subelement(
+            new_node, "id", "serialNumber", serialNumber, False
+        )
         _add_new_subelement(new_node, "id", "MD5Hash", MD5Hash, True)
         place = _get_tag_pos(self._node, "id", self.xmlkeys(), newposition)
         self._node.insert(place, new_node)
@@ -3823,7 +3973,9 @@ class Rdml:
         """
 
         pos = _get_tag_pos(self._node, "id", self.xmlkeys(), newposition)
-        ele = _get_first_child_by_pos_or_id(self._node, "id", None, oldposition)
+        ele = _get_first_child_by_pos_or_id(
+            self._node, "id", None, oldposition
+        )
         self._node.insert(pos, ele)
 
     def get_rdmlid(self, byposition=None):
@@ -3837,7 +3989,9 @@ class Rdml:
             The found element or None.
         """
 
-        return Rdmlid(_get_first_child_by_pos_or_id(self._node, "id", None, byposition))
+        return Rdmlid(
+            _get_first_child_by_pos_or_id(self._node, "id", None, byposition)
+        )
 
     def delete_rdmlid(self, byposition=None):
         """Deletes an experimenter element.
@@ -3850,7 +4004,9 @@ class Rdml:
             Nothing, changes self.
         """
 
-        elem = _get_first_child_by_pos_or_id(self._node, "id", None, byposition)
+        elem = _get_first_child_by_pos_or_id(
+            self._node, "id", None, byposition
+        )
         self._node.remove(elem)
 
     def experimenters(self):
@@ -3895,12 +4051,20 @@ class Rdml:
             Nothing, changes self.
         """
         new_node = _create_new_element(self._node, "experimenter", id)
-        _add_new_subelement(new_node, "experimenter", "firstName", firstName, False)
-        _add_new_subelement(new_node, "experimenter", "lastName", lastName, False)
+        _add_new_subelement(
+            new_node, "experimenter", "firstName", firstName, False
+        )
+        _add_new_subelement(
+            new_node, "experimenter", "lastName", lastName, False
+        )
         _add_new_subelement(new_node, "experimenter", "email", email, True)
         _add_new_subelement(new_node, "experimenter", "labName", labName, True)
-        _add_new_subelement(new_node, "experimenter", "labAddress", labAddress, True)
-        place = _get_tag_pos(self._node, "experimenter", self.xmlkeys(), newposition)
+        _add_new_subelement(
+            new_node, "experimenter", "labAddress", labAddress, True
+        )
+        place = _get_tag_pos(
+            self._node, "experimenter", self.xmlkeys(), newposition
+        )
         self._node.insert(place, new_node)
 
     def move_experimenter(self, id, newposition):
@@ -3915,7 +4079,9 @@ class Rdml:
             No return value, changes self. Function may raise RdmlError if required.
         """
 
-        _move_subelement(self._node, "experimenter", id, self.xmlkeys(), newposition)
+        _move_subelement(
+            self._node, "experimenter", id, self.xmlkeys(), newposition
+        )
 
     def import_experimenter(self, experimenter):
         """Imports the element to the end of the current list.
@@ -3935,7 +4101,9 @@ class Rdml:
         for node in allChildren:
             count += 1
             if node.get("id") == currId:
-                pos = _get_tag_pos(self._node, "experimenter", self.xmlkeys(), count)
+                pos = _get_tag_pos(
+                    self._node, "experimenter", self.xmlkeys(), count
+                )
                 self._node.remove(node)
         self._node.insert(pos, experimenter._node)
 
@@ -3978,7 +4146,9 @@ class Rdml:
         """
 
         return Experimenter(
-            _get_first_child_by_pos_or_id(self._node, "experimenter", byid, byposition)
+            _get_first_child_by_pos_or_id(
+                self._node, "experimenter", byid, byposition
+            )
         )
 
     def delete_experimenter(self, byid=None, byposition=None):
@@ -4028,7 +4198,9 @@ class Rdml:
         """
         new_node = _create_new_element(self._node, "documentation", id)
         _add_new_subelement(new_node, "documentation", "text", text, True)
-        place = _get_tag_pos(self._node, "documentation", self.xmlkeys(), newposition)
+        place = _get_tag_pos(
+            self._node, "documentation", self.xmlkeys(), newposition
+        )
         self._node.insert(place, new_node)
 
     def move_documentation(self, id, newposition):
@@ -4043,7 +4215,9 @@ class Rdml:
             No return value, changes self. Function may raise RdmlError if required.
         """
 
-        _move_subelement(self._node, "documentation", id, self.xmlkeys(), newposition)
+        _move_subelement(
+            self._node, "documentation", id, self.xmlkeys(), newposition
+        )
 
     def import_documentation(self, documentation):
         """Imports the element to the end of the current list.
@@ -4063,7 +4237,9 @@ class Rdml:
         for node in allChildren:
             count += 1
             if node.get("id") == currId:
-                pos = _get_tag_pos(self._node, "documentation", self.xmlkeys(), count)
+                pos = _get_tag_pos(
+                    self._node, "documentation", self.xmlkeys(), count
+                )
                 self._node.remove(node)
         self._node.insert(pos, documentation._node)
 
@@ -4106,7 +4282,9 @@ class Rdml:
         """
 
         return Documentation(
-            _get_first_child_by_pos_or_id(self._node, "documentation", byid, byposition)
+            _get_first_child_by_pos_or_id(
+                self._node, "documentation", byid, byposition
+            )
         )
 
     def delete_documentation(self, byid=None, byposition=None):
@@ -4233,7 +4411,9 @@ class Rdml:
             The found element or None.
         """
 
-        return Dye(_get_first_child_by_pos_or_id(self._node, "dye", byid, byposition))
+        return Dye(
+            _get_first_child_by_pos_or_id(self._node, "dye", byid, byposition)
+        )
 
     def delete_dye(self, byid=None, byposition=None):
         """Deletes an dye element.
@@ -4247,7 +4427,9 @@ class Rdml:
             Nothing, changes self.
         """
 
-        elem = _get_first_child_by_pos_or_id(self._node, "dye", byid, byposition)
+        elem = _get_first_child_by_pos_or_id(
+            self._node, "dye", byid, byposition
+        )
         self._node.remove(elem)
 
     def samples(self):
@@ -4438,7 +4620,9 @@ class Rdml:
             for docId in addDyes:
                 self.import_dye(add_rd.get_dye(byid=docId))
             for docId in addTargets:
-                self.import_target(add_rd, add_rd.get_target(byid=docId), "no-dep")
+                self.import_target(
+                    add_rd, add_rd.get_target(byid=docId), "no-dep"
+                )
             for docId in addThermal:
                 self.import_therm_cyc_cons(
                     add_rd, add_rd.get_therm_cyc_cons(byid=docId), "no-dep"
@@ -4563,7 +4747,9 @@ class Rdml:
 
                 subNode = _get_first_child(addEle._node, "cdnaSynthesisMethod")
                 if subNode is not None:
-                    forId = _get_first_child(subNode, "thermalCyclingConditions")
+                    forId = _get_first_child(
+                        subNode, "thermalCyclingConditions"
+                    )
                     if forId is not None:
                         foundId = forId.attrib["id"]
                         if foundId not in addThermal:
@@ -4663,7 +4849,9 @@ class Rdml:
         """
 
         return Sample(
-            _get_first_child_by_pos_or_id(self._node, "sample", byid, byposition)
+            _get_first_child_by_pos_or_id(
+                self._node, "sample", byid, byposition
+            )
         )
 
     def delete_sample(self, byid=None, byposition=None):
@@ -4678,7 +4866,9 @@ class Rdml:
             Nothing, changes self.
         """
 
-        elem = _get_first_child_by_pos_or_id(self._node, "sample", byid, byposition)
+        elem = _get_first_child_by_pos_or_id(
+            self._node, "sample", byid, byposition
+        )
         self._node.remove(elem)
 
     def export_annotations(self):
@@ -4754,9 +4944,13 @@ class Rdml:
         with open(csvData, newline="") as tfile:  # add encoding='utf-8' ?
             annoTab = list(csv.reader(tfile, delimiter="\t"))
             if len(annoTab) < 2:
-                raise RdmlError("The annotation file must have at least two rows.")
+                raise RdmlError(
+                    "The annotation file must have at least two rows."
+                )
             if len(annoTab[0]) < 2:
-                raise RdmlError("The annotation file must have at least two columns.")
+                raise RdmlError(
+                    "The annotation file must have at least two columns."
+                )
             for row in range(1, len(annoTab)):
                 samId = annoTab[row][0]
                 if samId != "":
@@ -4765,7 +4959,9 @@ class Rdml:
                         annoVal = annoTab[row][col]
                         if annoProp != "":
                             el = self.get_sample(byid=samId)
-                            el.edit_annotation_value(property=annoProp, value=annoVal)
+                            el.edit_annotation_value(
+                                property=annoProp, value=annoVal
+                            )
         return
 
     def rename_annotation_property(self, oldProperty, newProperty):
@@ -4856,7 +5052,9 @@ class Rdml:
                 if rightVal != "":
                     el = Sample(node)
                     newVal = leftVal + connectProperty + rightVal
-                    el.edit_annotation_value(property=combinedPoperty, value=newVal)
+                    el.edit_annotation_value(
+                        property=combinedPoperty, value=newVal
+                    )
         return
 
     def targets(self):
@@ -4889,7 +5087,9 @@ class Rdml:
         """
 
         if type not in ["ref", "toi"]:
-            raise RdmlError('Unknown or unsupported target type value "' + type + '".')
+            raise RdmlError(
+                'Unknown or unsupported target type value "' + type + '".'
+            )
         new_node = _create_new_element(self._node, "target", id)
         _add_new_subelement(new_node, "target", "type", type, False)
         place = _get_tag_pos(self._node, "target", self.xmlkeys(), newposition)
@@ -5061,7 +5261,9 @@ class Rdml:
         """
 
         return Target(
-            _get_first_child_by_pos_or_id(self._node, "target", byid, byposition),
+            _get_first_child_by_pos_or_id(
+                self._node, "target", byid, byposition
+            ),
             self._rdmlFilename,
         )
 
@@ -5077,7 +5279,9 @@ class Rdml:
             Nothing, changes self.
         """
 
-        elem = _get_first_child_by_pos_or_id(self._node, "target", byid, byposition)
+        elem = _get_first_child_by_pos_or_id(
+            self._node, "target", byid, byposition
+        )
         self._node.remove(elem)
 
     def therm_cyc_cons(self):
@@ -5108,7 +5312,9 @@ class Rdml:
             Nothing, changes self.
         """
 
-        new_node = _create_new_element(self._node, "thermalCyclingConditions", id)
+        new_node = _create_new_element(
+            self._node, "thermalCyclingConditions", id
+        )
         step = et.SubElement(new_node, "step")
         et.SubElement(step, "nr").text = "1"
         et.SubElement(step, "lidOpen")
@@ -5130,7 +5336,11 @@ class Rdml:
         """
 
         _move_subelement(
-            self._node, "thermalCyclingConditions", id, self.xmlkeys(), newposition
+            self._node,
+            "thermalCyclingConditions",
+            id,
+            self.xmlkeys(),
+            newposition,
         )
 
     def import_therm_cyc_cons(self, add_rd, thermCycCon, addMode):
@@ -5193,7 +5403,10 @@ class Rdml:
             count += 1
             if node.get("id") == currId:
                 pos = _get_tag_pos(
-                    self._node, "thermalCyclingConditions", self.xmlkeys(), count
+                    self._node,
+                    "thermalCyclingConditions",
+                    self.xmlkeys(),
+                    count,
                 )
                 self._node.remove(node)
         self._node.insert(pos, thermCycCon._node)
@@ -5338,7 +5551,9 @@ class Rdml:
         """
 
         new_node = _create_new_element(self._node, "experiment", id)
-        place = _get_tag_pos(self._node, "experiment", self.xmlkeys(), newposition)
+        place = _get_tag_pos(
+            self._node, "experiment", self.xmlkeys(), newposition
+        )
         self._node.insert(place, new_node)
 
     def move_experiment(self, id, newposition):
@@ -5353,7 +5568,9 @@ class Rdml:
             No return value, changes self. Function may raise RdmlError if required.
         """
 
-        _move_subelement(self._node, "experiment", id, self.xmlkeys(), newposition)
+        _move_subelement(
+            self._node, "experiment", id, self.xmlkeys(), newposition
+        )
 
     def move_experiment_run(self, id, oldid, runid):
         """Moves a run to a different experiment.
@@ -5541,7 +5758,9 @@ class Rdml:
                                         addTargets.append(foundId)
                     subNode = _get_first_child(node, "cdnaSynthesisMethod")
                     if subNode is not None:
-                        forId = _get_first_child(subNode, "thermalCyclingConditions")
+                        forId = _get_first_child(
+                            subNode, "thermalCyclingConditions"
+                        )
                         if forId is not None:
                             foundId = forId.attrib["id"]
                             if foundId not in addThermal:
@@ -5620,9 +5839,13 @@ class Rdml:
             for docId in addDyes:
                 self.import_dye(add_rd.get_dye(byid=docId))
             for docId in addSamples:
-                self.import_sample(add_rd, add_rd.get_sample(byid=docId), "no-dep")
+                self.import_sample(
+                    add_rd, add_rd.get_sample(byid=docId), "no-dep"
+                )
             for docId in addTargets:
-                self.import_target(add_rd, add_rd.get_target(byid=docId), "no-dep")
+                self.import_target(
+                    add_rd, add_rd.get_target(byid=docId), "no-dep"
+                )
             for docId in addThermal:
                 self.import_therm_cyc_cons(
                     add_rd, add_rd.get_therm_cyc_cons(byid=docId), "no-dep"
@@ -5635,7 +5858,9 @@ class Rdml:
         for node in allChildren:
             count += 1
             if node.get("id") == currId:
-                pos = _get_tag_pos(self._node, "experiment", self.xmlkeys(), count)
+                pos = _get_tag_pos(
+                    self._node, "experiment", self.xmlkeys(), count
+                )
                 self._node.remove(node)
         self._node.insert(pos, experiment._node)
 
@@ -5745,7 +5970,9 @@ class Rdml:
                                     "only-new-incl-dep",
                                 ]:
                                     addExps.append(foundId)
-                    forId = _get_first_child(runNode, "thermalCyclingConditions")
+                    forId = _get_first_child(
+                        runNode, "thermalCyclingConditions"
+                    )
                     if forId is not None:
                         foundId = forId.attrib["id"]
                         if foundId not in addThermal:
@@ -5852,7 +6079,9 @@ class Rdml:
                                     addTargets.append(foundId)
                 subNode = _get_first_child(node, "cdnaSynthesisMethod")
                 if subNode is not None:
-                    forId = _get_first_child(subNode, "thermalCyclingConditions")
+                    forId = _get_first_child(
+                        subNode, "thermalCyclingConditions"
+                    )
                     if forId is not None:
                         foundId = forId.attrib["id"]
                         if foundId not in addThermal:
@@ -5952,7 +6181,9 @@ class Rdml:
         """
 
         return Experiment(
-            _get_first_child_by_pos_or_id(self._node, "experiment", byid, byposition),
+            _get_first_child_by_pos_or_id(
+                self._node, "experiment", byid, byposition
+            ),
             self._rdmlFilename,
         )
 
@@ -5968,7 +6199,9 @@ class Rdml:
             Nothing, changes self.
         """
 
-        elem = _get_first_child_by_pos_or_id(self._node, "experiment", byid, byposition)
+        elem = _get_first_child_by_pos_or_id(
+            self._node, "experiment", byid, byposition
+        )
         experiment = Experiment(elem, self._rdmlFilename)
 
         # Required to delete digital files
@@ -6049,7 +6282,7 @@ class Rdml:
 
 
 class Rdmlid:
-    """RDML-Python library
+    """RDML-Python library.
 
     The rdml id element used to read and edit one experimenter.
 
@@ -6155,7 +6388,7 @@ class Rdmlid:
 
 
 class Experimenter:
-    """RDML-Python library
+    """RDML-Python library.
 
     The experimenter element used to read and edit one experimenter.
 
@@ -6247,7 +6480,11 @@ class Experimenter:
                 groupTag = self._node.tag.replace("{http://www.rdml.org}", "")
                 if _check_unique_id(par, groupTag, value):
                     raise RdmlError(
-                        "The " + groupTag + ' id "' + value + '" does not exist.'
+                        "The "
+                        + groupTag
+                        + ' id "'
+                        + value
+                        + '" does not exist.'
                     )
             allTh = _get_all_children(par, "thermalCyclingConditions")
             for node in allTh:
@@ -6275,7 +6512,14 @@ class Experimenter:
             A list of the key strings.
         """
 
-        return ["id", "firstName", "lastName", "email", "labName", "labAddress"]
+        return [
+            "id",
+            "firstName",
+            "lastName",
+            "email",
+            "labName",
+            "labAddress",
+        ]
 
     def xmlkeys(self):
         """Returns a list of the keys in the xml file.
@@ -6311,7 +6555,7 @@ class Experimenter:
 
 
 class Documentation:
-    """RDML-Python library
+    """RDML-Python library.
 
     The documentation element used to read and edit one documentation tag.
 
@@ -6397,7 +6641,11 @@ class Documentation:
                 groupTag = self._node.tag.replace("{http://www.rdml.org}", "")
                 if _check_unique_id(par, groupTag, value):
                     raise RdmlError(
-                        "The " + groupTag + ' id "' + value + '" does not exist.'
+                        "The "
+                        + groupTag
+                        + ' id "'
+                        + value
+                        + '" does not exist.'
                     )
             allSam = _get_all_children(par, "sample")
             for node in allSam:
@@ -6473,7 +6721,7 @@ class Documentation:
 
 
 class Dye:
-    """RDML-Python library
+    """RDML-Python library.
 
     The dye element used to read and edit one dye.
 
@@ -6538,7 +6786,9 @@ class Dye:
                 "DNA-zyme probe",
             ]:
                 raise RdmlError(
-                    'Unknown or unsupported dye chemistry value "' + value + '".'
+                    'Unknown or unsupported dye chemistry value "'
+                    + value
+                    + '".'
                 )
 
         if key == "id":
@@ -6580,7 +6830,11 @@ class Dye:
                 groupTag = self._node.tag.replace("{http://www.rdml.org}", "")
                 if _check_unique_id(par, groupTag, value):
                     raise RdmlError(
-                        "The " + groupTag + ' id "' + value + '" does not exist.'
+                        "The "
+                        + groupTag
+                        + ' id "'
+                        + value
+                        + '" does not exist.'
                     )
             allTar = _get_all_children(par, "target")
             for node in allTar:
@@ -6633,7 +6887,7 @@ class Dye:
 
 
 class Sample:
-    """RDML-Python library
+    """RDML-Python library.
 
     The samples element used to read and edit one sample.
 
@@ -6696,7 +6950,9 @@ class Sample:
                     return forId.attrib["id"]
                 else:
                     return None
-            raise RdmlError("Sample cdnaSynthesisMethod programming read error.")
+            raise RdmlError(
+                "Sample cdnaSynthesisMethod programming read error."
+            )
         par = self._node.getparent()
         ver = par.get("version")
         if ver == "1.1":
@@ -6849,12 +7105,24 @@ class Sample:
                         + key
                         + '" must have a dictionary with "method" and "result" as value.'
                     )
-                ele = _get_or_create_subelement(self._node, key, self.xmlkeys())
-                _change_subelement(
-                    ele, "method", ["method", "result"], value["method"], True, "string"
+                ele = _get_or_create_subelement(
+                    self._node, key, self.xmlkeys()
                 )
                 _change_subelement(
-                    ele, "result", ["method", "result"], value["result"], True, "float"
+                    ele,
+                    "method",
+                    ["method", "result"],
+                    value["method"],
+                    True,
+                    "string",
+                )
+                _change_subelement(
+                    ele,
+                    "result",
+                    ["method", "result"],
+                    value["result"],
+                    True,
+                    "float",
                 )
                 _remove_irrelevant_subelement(self._node, key)
                 return
@@ -6883,13 +7151,25 @@ class Sample:
                         + value
                         + '".'
                     )
-                ele = _get_or_create_subelement(self._node, key, self.xmlkeys())
+                ele = _get_or_create_subelement(
+                    self._node, key, self.xmlkeys()
+                )
                 _change_subelement(
-                    ele, "value", ["value", "unit"], value["value"], True, "float"
+                    ele,
+                    "value",
+                    ["value", "unit"],
+                    value["value"],
+                    True,
+                    "float",
                 )
                 if value["value"] != "":
                     _change_subelement(
-                        ele, "unit", ["value", "unit"], value["unit"], True, "string"
+                        ele,
+                        "unit",
+                        ["value", "unit"],
+                        value["unit"],
+                        True,
+                        "string",
                     )
                 else:
                     _change_subelement(
@@ -6907,7 +7187,13 @@ class Sample:
                         + key
                         + ' must have a dictionary with "nucleotide" and "conc" as value.'
                     )
-                if value["nucleotide"] not in ["", "DNA", "genomic DNA", "cDNA", "RNA"]:
+                if value["nucleotide"] not in [
+                    "",
+                    "DNA",
+                    "genomic DNA",
+                    "cDNA",
+                    "RNA",
+                ]:
                     raise RdmlError(
                         "Unknown or unsupported sample "
                         + key
@@ -6915,9 +7201,16 @@ class Sample:
                         + value
                         + '".'
                     )
-                ele = _get_or_create_subelement(self._node, key, self.xmlkeys())
+                ele = _get_or_create_subelement(
+                    self._node, key, self.xmlkeys()
+                )
                 _change_subelement(
-                    ele, "conc", ["conc", "nucleotide"], value["conc"], True, "float"
+                    ele,
+                    "conc",
+                    ["conc", "nucleotide"],
+                    value["conc"],
+                    True,
+                    "float",
                 )
                 if value["conc"] != "":
                     _change_subelement(
@@ -6930,7 +7223,12 @@ class Sample:
                     )
                 else:
                     _change_subelement(
-                        ele, "nucleotide", ["conc", "nucleotide"], "", True, "string"
+                        ele,
+                        "nucleotide",
+                        ["conc", "nucleotide"],
+                        "",
+                        True,
+                        "string",
                     )
                 _remove_irrelevant_subelement(self._node, key)
                 return
@@ -6959,7 +7257,11 @@ class Sample:
                 groupTag = self._node.tag.replace("{http://www.rdml.org}", "")
                 if _check_unique_id(par, groupTag, value):
                     raise RdmlError(
-                        "The " + groupTag + ' id "' + value + '" does not exist.'
+                        "The "
+                        + groupTag
+                        + ' id "'
+                        + value
+                        + '" does not exist.'
                     )
             allExp = _get_all_children(par, "experiment")
             for node in allExp:
@@ -7088,8 +7390,19 @@ class Sample:
             Nothing, changes self.
         """
 
-        if type not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
-            raise RdmlError('Unknown or unsupported sample type value "' + type + '".')
+        if type not in [
+            "unkn",
+            "ntc",
+            "nac",
+            "std",
+            "ntp",
+            "nrt",
+            "pos",
+            "opt",
+        ]:
+            raise RdmlError(
+                'Unknown or unsupported sample type value "' + type + '".'
+            )
         new_node = et.Element("type")
         new_node.text = type
         par = self._node.getparent()
@@ -7115,13 +7428,26 @@ class Sample:
             Nothing, changes self.
         """
 
-        if type not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
-            raise RdmlError('Unknown or unsupported sample type value "' + type + '".')
+        if type not in [
+            "unkn",
+            "ntc",
+            "nac",
+            "std",
+            "ntp",
+            "nrt",
+            "pos",
+            "opt",
+        ]:
+            raise RdmlError(
+                'Unknown or unsupported sample type value "' + type + '".'
+            )
         if oldposition is None:
             raise RdmlError("A oldposition is required to edit a type.")
 
         pos = _get_tag_pos(self._node, "type", self.xmlkeys(), newposition)
-        ele = _get_first_child_by_pos_or_id(self._node, "type", None, oldposition)
+        ele = _get_first_child_by_pos_or_id(
+            self._node, "type", None, oldposition
+        )
         ele.text = type
         par = self._node.getparent()
         ver = par.get("version")
@@ -7146,7 +7472,9 @@ class Sample:
         """
 
         pos = _get_tag_pos(self._node, "type", self.xmlkeys(), newposition)
-        ele = _get_first_child_by_pos_or_id(self._node, "type", None, oldposition)
+        ele = _get_first_child_by_pos_or_id(
+            self._node, "type", None, oldposition
+        )
         self._node.insert(pos, ele)
 
     def delete_type(self, byposition):
@@ -7167,7 +7495,9 @@ class Sample:
             if len(ls) < 2:
                 return
 
-        elem = _get_first_child_by_pos_or_id(self._node, "type", None, byposition)
+        elem = _get_first_child_by_pos_or_id(
+            self._node, "type", None, byposition
+        )
         self._node.remove(elem)
 
     def quantitys(self):
@@ -7221,16 +7551,24 @@ class Sample:
             if len(ls) != 0:
                 return
         new_node = et.Element("quantity")
-        _change_subelement(new_node, "value", ["value", "unit"], value, True, "float")
-        _change_subelement(new_node, "unit", ["value", "unit"], unit, True, "string")
+        _change_subelement(
+            new_node, "value", ["value", "unit"], value, True, "float"
+        )
+        _change_subelement(
+            new_node, "unit", ["value", "unit"], unit, True, "string"
+        )
         if ver == "1.3":
             if targetId is not None:
                 if not targetId == "":
                     new_node.attrib["targetId"] = targetId
-        place = _get_tag_pos(self._node, "quantity", self.xmlkeys(), newposition)
+        place = _get_tag_pos(
+            self._node, "quantity", self.xmlkeys(), newposition
+        )
         self._node.insert(place, new_node)
 
-    def edit_quantity(self, value, unit, oldposition, newposition=None, targetId=None):
+    def edit_quantity(
+        self, value, unit, oldposition, newposition=None, targetId=None
+    ):
         """Edits a type element.
 
         Args:
@@ -7255,9 +7593,15 @@ class Sample:
             raise RdmlError("A oldposition is required to edit a quantity.")
 
         pos = _get_tag_pos(self._node, "quantity", self.xmlkeys(), newposition)
-        ele = _get_first_child_by_pos_or_id(self._node, "quantity", None, oldposition)
-        _change_subelement(ele, "value", ["value", "unit"], value, True, "float")
-        _change_subelement(ele, "unit", ["value", "unit"], unit, True, "string")
+        ele = _get_first_child_by_pos_or_id(
+            self._node, "quantity", None, oldposition
+        )
+        _change_subelement(
+            ele, "value", ["value", "unit"], value, True, "float"
+        )
+        _change_subelement(
+            ele, "unit", ["value", "unit"], unit, True, "string"
+        )
         par = self._node.getparent()
         ver = par.get("version")
         if "targetId" in ele.attrib:
@@ -7281,7 +7625,9 @@ class Sample:
         """
 
         pos = _get_tag_pos(self._node, "quantity", self.xmlkeys(), newposition)
-        ele = _get_first_child_by_pos_or_id(self._node, "quantity", None, oldposition)
+        ele = _get_first_child_by_pos_or_id(
+            self._node, "quantity", None, oldposition
+        )
         self._node.insert(pos, ele)
 
     def delete_quantity(self, byposition):
@@ -7295,7 +7641,9 @@ class Sample:
             Nothing, changes self.
         """
 
-        elem = _get_first_child_by_pos_or_id(self._node, "quantity", None, byposition)
+        elem = _get_first_child_by_pos_or_id(
+            self._node, "quantity", None, byposition
+        )
         self._node.remove(elem)
 
     def xrefs(self):
@@ -7358,7 +7706,9 @@ class Sample:
             self.delete_xref(oldposition)
             return
         pos = _get_tag_pos(self._node, "xRef", self.xmlkeys(), newposition)
-        ele = _get_first_child_by_pos_or_id(self._node, "xRef", None, oldposition)
+        ele = _get_first_child_by_pos_or_id(
+            self._node, "xRef", None, oldposition
+        )
         _change_subelement(ele, "name", ["name", "id"], name, True, "string")
         _change_subelement(
             ele, "id", ["name", "id"], id, True, "string", id_as_element=True
@@ -7378,7 +7728,9 @@ class Sample:
         """
 
         pos = _get_tag_pos(self._node, "xRef", self.xmlkeys(), newposition)
-        ele = _get_first_child_by_pos_or_id(self._node, "xRef", None, oldposition)
+        ele = _get_first_child_by_pos_or_id(
+            self._node, "xRef", None, oldposition
+        )
         self._node.insert(pos, ele)
 
     def delete_xref(self, byposition):
@@ -7392,7 +7744,9 @@ class Sample:
             Nothing, changes self.
         """
 
-        elem = _get_first_child_by_pos_or_id(self._node, "xRef", None, byposition)
+        elem = _get_first_child_by_pos_or_id(
+            self._node, "xRef", None, byposition
+        )
         self._node.remove(elem)
 
     def annotations(self):
@@ -7436,14 +7790,20 @@ class Sample:
         if ver == "1.1":
             return
         if property is None or value is None:
-            raise RdmlError("Property and value are required to create a annotation.")
+            raise RdmlError(
+                "Property and value are required to create a annotation."
+            )
         new_node = et.Element("annotation")
         _add_new_subelement(new_node, "annotation", "property", property, True)
         _add_new_subelement(new_node, "annotation", "value", value, True)
-        place = _get_tag_pos(self._node, "annotation", self.xmlkeys(), newposition)
+        place = _get_tag_pos(
+            self._node, "annotation", self.xmlkeys(), newposition
+        )
         self._node.insert(place, new_node)
 
-    def edit_annotation(self, oldposition, newposition=None, property=None, value=None):
+    def edit_annotation(
+        self, oldposition, newposition=None, property=None, value=None
+    ):
         """Edits an annotation element.
 
         Args:
@@ -7463,15 +7823,23 @@ class Sample:
             return
         if oldposition is None:
             raise RdmlError("A oldposition is required to edit a annotation.")
-        if (property is None or property == "") or (value is None or value == ""):
+        if (property is None or property == "") or (
+            value is None or value == ""
+        ):
             self.delete_annotation(oldposition)
             return
-        pos = _get_tag_pos(self._node, "annotation", self.xmlkeys(), newposition)
-        ele = _get_first_child_by_pos_or_id(self._node, "annotation", None, oldposition)
+        pos = _get_tag_pos(
+            self._node, "annotation", self.xmlkeys(), newposition
+        )
+        ele = _get_first_child_by_pos_or_id(
+            self._node, "annotation", None, oldposition
+        )
         _change_subelement(
             ele, "property", ["property", "value"], property, True, "string"
         )
-        _change_subelement(ele, "value", ["property", "value"], value, True, "string")
+        _change_subelement(
+            ele, "value", ["property", "value"], value, True, "string"
+        )
         self._node.insert(pos, ele)
 
     def edit_annotation_value(self, property, value=None):
@@ -7512,14 +7880,21 @@ class Sample:
                     continue
                 if foundProp == False:
                     _change_subelement(
-                        node, "value", ["property", "value"], value, True, "string"
+                        node,
+                        "value",
+                        ["property", "value"],
+                        value,
+                        True,
+                        "string",
                     )
                     foundProp = True
                 else:
                     self._node.remove(node)
                     continue
         if foundProp == False:
-            self.new_annotation(property=property, value=value, newposition=9999999999)
+            self.new_annotation(
+                property=property, value=value, newposition=9999999999
+            )
 
     def move_annotation(self, oldposition, newposition):
         """Moves the element to the new position in the list.
@@ -7537,8 +7912,12 @@ class Sample:
         ver = par.get("version")
         if ver == "1.1":
             return
-        pos = _get_tag_pos(self._node, "annotation", self.xmlkeys(), newposition)
-        ele = _get_first_child_by_pos_or_id(self._node, "annotation", None, oldposition)
+        pos = _get_tag_pos(
+            self._node, "annotation", self.xmlkeys(), newposition
+        )
+        ele = _get_first_child_by_pos_or_id(
+            self._node, "annotation", None, oldposition
+        )
         self._node.insert(pos, ele)
 
     def delete_annotation(self, byposition):
@@ -7556,7 +7935,9 @@ class Sample:
         ver = par.get("version")
         if ver == "1.1":
             return
-        elem = _get_first_child_by_pos_or_id(self._node, "annotation", None, byposition)
+        elem = _get_first_child_by_pos_or_id(
+            self._node, "annotation", None, byposition
+        )
         self._node.remove(elem)
 
     def documentation_ids(self):
@@ -7589,7 +7970,9 @@ class Sample:
         for id, inc in good_ids.items():
             if inc is True:
                 if id not in old:
-                    new_node = _create_new_element(self._node, "documentation", id)
+                    new_node = _create_new_element(
+                        self._node, "documentation", id
+                    )
                     place = _get_tag_pos(
                         self._node, "documentation", self.xmlkeys(), 999999999
                     )
@@ -7616,7 +7999,9 @@ class Sample:
             No return value, changes self. Function may raise RdmlError if required.
         """
 
-        pos = _get_tag_pos(self._node, "documentation", self.xmlkeys(), newposition)
+        pos = _get_tag_pos(
+            self._node, "documentation", self.xmlkeys(), newposition
+        )
         ele = _get_first_child_by_pos_or_id(
             self._node, "documentation", None, oldposition
         )
@@ -7694,7 +8079,7 @@ class Sample:
 
 
 class Target:
-    """RDML-Python library
+    """RDML-Python library.
 
     The target element used to read and edit one target.
 
@@ -7894,7 +8279,9 @@ class Target:
                     self._node, key, self.xmlkeys(), value, True, "float"
                 )
         if key == "dyeId":
-            forId = _get_or_create_subelement(self._node, "dyeId", self.xmlkeys())
+            forId = _get_or_create_subelement(
+                self._node, "dyeId", self.xmlkeys()
+            )
             if value is not None and value != "":
                 # We do not check that ID is valid to allow recreate_lost_ids()
                 forId.attrib["id"] = value
@@ -7918,7 +8305,9 @@ class Target:
             "sequences_amplicon_fivePrimeTag",
             "sequences_amplicon_sequence",
         ]:
-            prim = _get_or_create_subelement(self._node, "sequences", self.xmlkeys())
+            prim = _get_or_create_subelement(
+                self._node, "sequences", self.xmlkeys()
+            )
             sec = None
             if key in [
                 "sequences_forwardPrimer_threePrimeTag",
@@ -7928,7 +8317,13 @@ class Target:
                 sec = _get_or_create_subelement(
                     prim,
                     "forwardPrimer",
-                    ["forwardPrimer", "reversePrimer", "probe1", "probe2", "amplicon"],
+                    [
+                        "forwardPrimer",
+                        "reversePrimer",
+                        "probe1",
+                        "probe2",
+                        "amplicon",
+                    ],
                 )
             if key in [
                 "sequences_reversePrimer_threePrimeTag",
@@ -7938,7 +8333,13 @@ class Target:
                 sec = _get_or_create_subelement(
                     prim,
                     "reversePrimer",
-                    ["forwardPrimer", "reversePrimer", "probe1", "probe2", "amplicon"],
+                    [
+                        "forwardPrimer",
+                        "reversePrimer",
+                        "probe1",
+                        "probe2",
+                        "amplicon",
+                    ],
                 )
             if key in [
                 "sequences_probe1_threePrimeTag",
@@ -7948,7 +8349,13 @@ class Target:
                 sec = _get_or_create_subelement(
                     prim,
                     "probe1",
-                    ["forwardPrimer", "reversePrimer", "probe1", "probe2", "amplicon"],
+                    [
+                        "forwardPrimer",
+                        "reversePrimer",
+                        "probe1",
+                        "probe2",
+                        "amplicon",
+                    ],
                 )
             if key in [
                 "sequences_probe2_threePrimeTag",
@@ -7958,7 +8365,13 @@ class Target:
                 sec = _get_or_create_subelement(
                     prim,
                     "probe2",
-                    ["forwardPrimer", "reversePrimer", "probe1", "probe2", "amplicon"],
+                    [
+                        "forwardPrimer",
+                        "reversePrimer",
+                        "probe1",
+                        "probe2",
+                        "amplicon",
+                    ],
                 )
             if key in [
                 "sequences_amplicon_threePrimeTag",
@@ -7968,7 +8381,13 @@ class Target:
                 sec = _get_or_create_subelement(
                     prim,
                     "amplicon",
-                    ["forwardPrimer", "reversePrimer", "probe1", "probe2", "amplicon"],
+                    [
+                        "forwardPrimer",
+                        "reversePrimer",
+                        "probe1",
+                        "probe2",
+                        "amplicon",
+                    ],
                 )
             if sec is None:
                 return None
@@ -8055,7 +8474,12 @@ class Target:
             )
             if key == "commercialAssay_company":
                 _change_subelement(
-                    ele, "company", ["company", "orderNumber"], value, True, "string"
+                    ele,
+                    "company",
+                    ["company", "orderNumber"],
+                    value,
+                    True,
+                    "string",
                 )
             if key == "commercialAssay_orderNumber":
                 _change_subelement(
@@ -8100,7 +8524,11 @@ class Target:
                 groupTag = self._node.tag.replace("{http://www.rdml.org}", "")
                 if _check_unique_id(par, groupTag, value):
                     raise RdmlError(
-                        "The " + groupTag + ' id "' + value + '" does not exist.'
+                        "The "
+                        + groupTag
+                        + ' id "'
+                        + value
+                        + '" does not exist.'
                     )
             allExp = _get_all_children(par, "sample")
             for node in allExp:
@@ -8130,7 +8558,9 @@ class Target:
                         if partit is not None:
                             digDataNodes = _get_all_children(partit, "data")
                             for digDataNode in digDataNodes:
-                                lastNodes = _get_all_children(digDataNode, "tar")
+                                lastNodes = _get_all_children(
+                                    digDataNode, "tar"
+                                )
                                 for lastNode in lastNodes:
                                     if lastNode.attrib["id"] == oldValue:
                                         lastNode.attrib["id"] = value
@@ -8144,7 +8574,9 @@ class Target:
                     with zipfile.ZipFile(self._rdmlFilename, "r") as RDMLin:
                         for item in RDMLin.infolist():
                             if re.search("^partitions/", item.filename):
-                                fileContent = RDMLin.read(item.filename).decode("utf-8")
+                                fileContent = RDMLin.read(
+                                    item.filename
+                                ).decode("utf-8")
                                 newlineFix = fileContent.replace("\r\n", "\n")
                                 tabLines = newlineFix.split("\n")
                                 header = tabLines[0].split("\t")
@@ -8161,7 +8593,9 @@ class Target:
                             os.close(tempFolder)
                             flipFiles = True
                             with zipfile.ZipFile(
-                                tempName, mode="w", compression=zipfile.ZIP_DEFLATED
+                                tempName,
+                                mode="w",
+                                compression=zipfile.ZIP_DEFLATED,
                             ) as RDMLout:
                                 RDMLout.comment = RDMLin.comment
                                 for item in RDMLin.infolist():
@@ -8170,10 +8604,12 @@ class Target:
                                             item, RDMLin.read(item.filename)
                                         )
                                     else:
-                                        fileContent = RDMLin.read(item.filename).decode(
-                                            "utf-8"
+                                        fileContent = RDMLin.read(
+                                            item.filename
+                                        ).decode("utf-8")
+                                        newlineFix = fileContent.replace(
+                                            "\r\n", "\n"
                                         )
-                                        newlineFix = fileContent.replace("\r\n", "\n")
                                         tabLines = newlineFix.split("\n")
                                         header = tabLines[0].split("\t")
                                         headerText = ""
@@ -8182,11 +8618,15 @@ class Target:
                                                 headerText += value + "\t"
                                             else:
                                                 headerText += cell + "\t"
-                                        outFileStr = re.sub(r"\t$", "\n", headerText)
+                                        outFileStr = re.sub(
+                                            r"\t$", "\n", headerText
+                                        )
                                         for tabLine in tabLines[1:]:
                                             if tabLine != "":
                                                 outFileStr += tabLine + "\n"
-                                        RDMLout.writestr(item.filename, outFileStr)
+                                        RDMLout.writestr(
+                                            item.filename, outFileStr
+                                        )
                     if flipFiles:
                         os.remove(self._rdmlFilename)
                         os.rename(tempName, self._rdmlFilename)
@@ -8316,7 +8756,9 @@ class Target:
             self.delete_xref(oldposition)
             return
         pos = _get_tag_pos(self._node, "xRef", self.xmlkeys(), newposition)
-        ele = _get_first_child_by_pos_or_id(self._node, "xRef", None, oldposition)
+        ele = _get_first_child_by_pos_or_id(
+            self._node, "xRef", None, oldposition
+        )
         _change_subelement(ele, "name", ["name", "id"], name, True, "string")
         _change_subelement(
             ele, "id", ["name", "id"], id, True, "string", id_as_element=True
@@ -8336,7 +8778,9 @@ class Target:
         """
 
         pos = _get_tag_pos(self._node, "xRef", self.xmlkeys(), newposition)
-        ele = _get_first_child_by_pos_or_id(self._node, "xRef", None, oldposition)
+        ele = _get_first_child_by_pos_or_id(
+            self._node, "xRef", None, oldposition
+        )
         self._node.insert(pos, ele)
 
     def delete_xref(self, byposition):
@@ -8350,7 +8794,9 @@ class Target:
             Nothing, changes self.
         """
 
-        elem = _get_first_child_by_pos_or_id(self._node, "xRef", None, byposition)
+        elem = _get_first_child_by_pos_or_id(
+            self._node, "xRef", None, byposition
+        )
         self._node.remove(elem)
 
     def documentation_ids(self):
@@ -8383,7 +8829,9 @@ class Target:
         for id, inc in good_ids.items():
             if inc is True:
                 if id not in old:
-                    new_node = _create_new_element(self._node, "documentation", id)
+                    new_node = _create_new_element(
+                        self._node, "documentation", id
+                    )
                     place = _get_tag_pos(
                         self._node, "documentation", self.xmlkeys(), 999999999
                     )
@@ -8410,7 +8858,9 @@ class Target:
             No return value, changes self. Function may raise RdmlError if required.
         """
 
-        pos = _get_tag_pos(self._node, "documentation", self.xmlkeys(), newposition)
+        pos = _get_tag_pos(
+            self._node, "documentation", self.xmlkeys(), newposition
+        )
         ele = _get_first_child_by_pos_or_id(
             self._node, "documentation", None, oldposition
         )
@@ -8433,9 +8883,15 @@ class Target:
         data["documentations"] = self.documentation_ids()
         data["xRefs"] = self.xrefs()
         _add_first_child_to_dic(self._node, data, False, "type")
-        _add_first_child_to_dic(self._node, data, True, "amplificationEfficiencyMethod")
-        _add_first_child_to_dic(self._node, data, True, "amplificationEfficiency")
-        _add_first_child_to_dic(self._node, data, True, "amplificationEfficiencySE")
+        _add_first_child_to_dic(
+            self._node, data, True, "amplificationEfficiencyMethod"
+        )
+        _add_first_child_to_dic(
+            self._node, data, True, "amplificationEfficiency"
+        )
+        _add_first_child_to_dic(
+            self._node, data, True, "amplificationEfficiencySE"
+        )
         _add_first_child_to_dic(self._node, data, True, "meltingTemperature")
         _add_first_child_to_dic(self._node, data, True, "detectionLimit")
         forId = _get_first_child(self._node, "dyeId")
@@ -8498,7 +8954,7 @@ class Target:
 
 
 class Therm_cyc_cons:
-    """RDML-Python library
+    """RDML-Python library.
 
     The thermalCyclingConditions element used to read and edit one thermal Cycling Conditions.
 
@@ -8588,13 +9044,19 @@ class Therm_cyc_cons:
                 groupTag = self._node.tag.replace("{http://www.rdml.org}", "")
                 if _check_unique_id(par, groupTag, value):
                     raise RdmlError(
-                        "The " + groupTag + ' id "' + value + '" does not exist.'
+                        "The "
+                        + groupTag
+                        + ' id "'
+                        + value
+                        + '" does not exist.'
                     )
             allSam = _get_all_children(par, "sample")
             for node in allSam:
                 subNode = _get_first_child(node, "cdnaSynthesisMethod")
                 if subNode is not None:
-                    forId = _get_first_child(subNode, "thermalCyclingConditions")
+                    forId = _get_first_child(
+                        subNode, "thermalCyclingConditions"
+                    )
                     if forId is not None:
                         if forId.attrib["id"] == oldValue:
                             forId.attrib["id"] = value
@@ -8602,7 +9064,9 @@ class Therm_cyc_cons:
             for node in allExp:
                 subNodes = _get_all_children(node, "run")
                 for subNode in subNodes:
-                    forId = _get_first_child(subNode, "thermalCyclingConditions")
+                    forId = _get_first_child(
+                        subNode, "thermalCyclingConditions"
+                    )
                     if forId is not None:
                         if forId.attrib["id"] == oldValue:
                             forId.attrib["id"] = value
@@ -8668,7 +9132,9 @@ class Therm_cyc_cons:
         for id, inc in good_ids.items():
             if inc is True:
                 if id not in old:
-                    new_node = _create_new_element(self._node, "documentation", id)
+                    new_node = _create_new_element(
+                        self._node, "documentation", id
+                    )
                     place = _get_tag_pos(
                         self._node, "documentation", self.xmlkeys(), 999999999
                     )
@@ -8695,7 +9161,9 @@ class Therm_cyc_cons:
             No return value, changes self. Function may raise RdmlError if required.
         """
 
-        pos = _get_tag_pos(self._node, "documentation", self.xmlkeys(), newposition)
+        pos = _get_tag_pos(
+            self._node, "documentation", self.xmlkeys(), newposition
+        )
         ele = _get_first_child_by_pos_or_id(
             self._node, "documentation", None, oldposition
         )
@@ -8731,7 +9199,9 @@ class Therm_cyc_cons:
         for id, inc in good_ids.items():
             if inc is True:
                 if id not in old:
-                    new_node = _create_new_element(self._node, "experimenter", id)
+                    new_node = _create_new_element(
+                        self._node, "experimenter", id
+                    )
                     place = _get_tag_pos(
                         self._node, "experimenter", self.xmlkeys(), 999999999
                     )
@@ -8758,7 +9228,9 @@ class Therm_cyc_cons:
             No return value, changes self. Function may raise RdmlError if required.
         """
 
-        pos = _get_tag_pos(self._node, "experimenter", self.xmlkeys(), newposition)
+        pos = _get_tag_pos(
+            self._node, "experimenter", self.xmlkeys(), newposition
+        )
         ele = _get_first_child_by_pos_or_id(
             self._node, "experimenter", None, oldposition
         )
@@ -8808,7 +9280,11 @@ class Therm_cyc_cons:
             Nothing, changes self.
         """
 
-        if measure is not None and measure not in ["", "real time", "meltcurve"]:
+        if measure is not None and measure not in [
+            "",
+            "real time",
+            "meltcurve",
+        ]:
             raise RdmlError(
                 'Unknown or unsupported step measure value: "' + measure + '".'
             )
@@ -8828,14 +9304,23 @@ class Therm_cyc_cons:
         _change_subelement(
             subel, "temperature", xml_temp_step, temperature, False, "float"
         )
-        _change_subelement(subel, "duration", xml_temp_step, duration, False, "posint")
         _change_subelement(
-            subel, "temperatureChange", xml_temp_step, temperatureChange, True, "float"
+            subel, "duration", xml_temp_step, duration, False, "posint"
+        )
+        _change_subelement(
+            subel,
+            "temperatureChange",
+            xml_temp_step,
+            temperatureChange,
+            True,
+            "float",
         )
         _change_subelement(
             subel, "durationChange", xml_temp_step, durationChange, True, "int"
         )
-        _change_subelement(subel, "measure", xml_temp_step, measure, True, "string")
+        _change_subelement(
+            subel, "measure", xml_temp_step, measure, True, "string"
+        )
         _change_subelement(subel, "ramp", xml_temp_step, ramp, True, "float")
         place = _get_first_tag_pos(self._node, "step", self.xmlkeys()) + count
         self._node.insert(place, new_node)
@@ -8870,7 +9355,11 @@ class Therm_cyc_cons:
             Nothing, changes self.
         """
 
-        if measure is not None and measure not in ["", "real time", "meltcurve"]:
+        if measure is not None and measure not in [
+            "",
+            "real time",
+            "meltcurve",
+        ]:
             raise RdmlError(
                 'Unknown or unsupported step measure value: "' + measure + '".'
             )
@@ -8889,19 +9378,38 @@ class Therm_cyc_cons:
         _add_new_subelement(new_node, "step", "nr", str(count + 1), False)
         subel = et.SubElement(new_node, "gradient")
         _change_subelement(
-            subel, "highTemperature", xml_temp_step, highTemperature, False, "float"
+            subel,
+            "highTemperature",
+            xml_temp_step,
+            highTemperature,
+            False,
+            "float",
         )
         _change_subelement(
-            subel, "lowTemperature", xml_temp_step, lowTemperature, False, "float"
+            subel,
+            "lowTemperature",
+            xml_temp_step,
+            lowTemperature,
+            False,
+            "float",
         )
-        _change_subelement(subel, "duration", xml_temp_step, duration, False, "posint")
         _change_subelement(
-            subel, "temperatureChange", xml_temp_step, temperatureChange, True, "float"
+            subel, "duration", xml_temp_step, duration, False, "posint"
+        )
+        _change_subelement(
+            subel,
+            "temperatureChange",
+            xml_temp_step,
+            temperatureChange,
+            True,
+            "float",
         )
         _change_subelement(
             subel, "durationChange", xml_temp_step, durationChange, True, "int"
         )
-        _change_subelement(subel, "measure", xml_temp_step, measure, True, "string")
+        _change_subelement(
+            subel, "measure", xml_temp_step, measure, True, "string"
+        )
         _change_subelement(subel, "ramp", xml_temp_step, ramp, True, "float")
         place = _get_first_tag_pos(self._node, "step", self.xmlkeys()) + count
         self._node.insert(place, new_node)
@@ -8928,7 +9436,9 @@ class Therm_cyc_cons:
         _add_new_subelement(new_node, "step", "nr", str(count + 1), False)
         subel = et.SubElement(new_node, "loop")
         _change_subelement(subel, "goto", xml_temp_step, goto, False, "posint")
-        _change_subelement(subel, "repeat", xml_temp_step, repeat, False, "posint")
+        _change_subelement(
+            subel, "repeat", xml_temp_step, repeat, False, "posint"
+        )
         place = _get_first_tag_pos(self._node, "step", self.xmlkeys()) + count
         self._node.insert(place, new_node)
         # Now move step at final position
@@ -8982,7 +9492,8 @@ class Therm_cyc_cons:
         self.move_step(count + 1, nr)
 
     def cleanup_steps(self):
-        """The steps may not be in a order that makes sense. This function fixes it.
+        """The steps may not be in a order that makes sense. This function
+        fixes it.
 
         Args:
             self: The class self parameter.
@@ -8997,7 +9508,9 @@ class Therm_cyc_cons:
         i = 0
         for node in srt_exp:
             if _get_step_sort_nr(node) != _get_step_sort_nr(exp[i]):
-                pos = _get_first_tag_pos(self._node, "step", self.xmlkeys()) + i
+                pos = (
+                    _get_first_tag_pos(self._node, "step", self.xmlkeys()) + i
+                )
                 self._node.insert(pos, node)
             i += 1
 
@@ -9026,7 +9539,9 @@ class Therm_cyc_cons:
         self.cleanup_steps()
 
         # Change the nr
-        _move_subelement_pos(self._node, "step", oldnr - 1, self.xmlkeys(), newnr - 1)
+        _move_subelement_pos(
+            self._node, "step", oldnr - 1, self.xmlkeys(), newnr - 1
+        )
 
         # Fix the nr
         exp = _get_all_children(self._node, "step")
@@ -9065,7 +9580,9 @@ class Therm_cyc_cons:
             The found element or None.
         """
 
-        return Step(_get_first_child_by_pos_or_id(self._node, "step", None, bystep - 1))
+        return Step(
+            _get_first_child_by_pos_or_id(self._node, "step", None, bystep - 1)
+        )
 
     def delete_step(self, bystep=None):
         """Deletes an step element.
@@ -9078,7 +9595,9 @@ class Therm_cyc_cons:
             Nothing, changes self.
         """
 
-        elem = _get_first_child_by_pos_or_id(self._node, "step", None, bystep - 1)
+        elem = _get_first_child_by_pos_or_id(
+            self._node, "step", None, bystep - 1
+        )
         self._node.remove(elem)
         self.cleanup_steps()
         # Fix the goto steps
@@ -9119,7 +9638,7 @@ class Therm_cyc_cons:
 
 
 class Step:
-    """RDML-Python library
+    """RDML-Python library.
 
     The samples element used to read and edit one sample.
 
@@ -9166,7 +9685,12 @@ class Step:
                 return "temperature"
             if key in ["temperature", "duration"]:
                 return _get_first_child_text(ele_type, key)
-            if key in ["temperatureChange", "durationChange", "measure", "ramp"]:
+            if key in [
+                "temperatureChange",
+                "durationChange",
+                "measure",
+                "ramp",
+            ]:
                 var = _get_first_child_text(ele_type, key)
                 if var == "":
                     return None
@@ -9178,7 +9702,12 @@ class Step:
                 return "gradient"
             if key in ["highTemperature", "lowTemperature", "duration"]:
                 return _get_first_child_text(ele_type, key)
-            if key in ["temperatureChange", "durationChange", "measure", "ramp"]:
+            if key in [
+                "temperatureChange",
+                "durationChange",
+                "measure",
+                "ramp",
+            ]:
                 var = _get_first_child_text(ele_type, key)
                 if var == "":
                     return None
@@ -9253,7 +9782,9 @@ class Step:
             if key == "measure":
                 if value not in ["", "real time", "meltcurve"]:
                     raise RdmlError(
-                        'Unknown or unsupported step measure value: "' + value + '".'
+                        'Unknown or unsupported step measure value: "'
+                        + value
+                        + '".'
                     )
                 return _change_subelement(
                     ele_type, key, xml_temp_step, value, True, "string"
@@ -9288,7 +9819,9 @@ class Step:
             if key == "measure":
                 if value not in ["", "real time", "meltcurve"]:
                     raise RdmlError(
-                        'Unknown or unsupported step measure value: "' + value + '".'
+                        'Unknown or unsupported step measure value: "'
+                        + value
+                        + '".'
                     )
                 return _change_subelement(
                     ele_type, key, xml_temp_step, value, True, "string"
@@ -9451,7 +9984,7 @@ class Step:
 
 
 class Experiment:
-    """RDML-Python library
+    """RDML-Python library.
 
     The target element used to read and edit one experiment.
 
@@ -9572,7 +10105,9 @@ class Experiment:
         for id, inc in good_ids.items():
             if inc is True:
                 if id not in old:
-                    new_node = _create_new_element(self._node, "documentation", id)
+                    new_node = _create_new_element(
+                        self._node, "documentation", id
+                    )
                     place = _get_tag_pos(
                         self._node, "documentation", self.xmlkeys(), 999999999
                     )
@@ -9599,7 +10134,9 @@ class Experiment:
             No return value, changes self. Function may raise RdmlError if required.
         """
 
-        pos = _get_tag_pos(self._node, "documentation", self.xmlkeys(), newposition)
+        pos = _get_tag_pos(
+            self._node, "documentation", self.xmlkeys(), newposition
+        )
         ele = _get_first_child_by_pos_or_id(
             self._node, "documentation", None, oldposition
         )
@@ -9680,7 +10217,9 @@ class Experiment:
             Nothing, changes self.
         """
 
-        elem = _get_first_child_by_pos_or_id(self._node, "run", byid, byposition)
+        elem = _get_first_child_by_pos_or_id(
+            self._node, "run", byid, byposition
+        )
 
         # Delete in Table files
         fileList = []
@@ -9702,12 +10241,16 @@ class Experiment:
                         )
                         os.close(tempFolder)
                         with zipfile.ZipFile(
-                            tempName, mode="w", compression=zipfile.ZIP_DEFLATED
+                            tempName,
+                            mode="w",
+                            compression=zipfile.ZIP_DEFLATED,
                         ) as RDMLout:
                             RDMLout.comment = RDMLin.comment
                             for item in RDMLin.infolist():
                                 if item.filename not in fileList:
-                                    RDMLout.writestr(item, RDMLin.read(item.filename))
+                                    RDMLout.writestr(
+                                        item, RDMLin.read(item.filename)
+                                    )
                     os.remove(self._rdmlFilename)
                     os.rename(tempName, self._rdmlFilename)
 
@@ -9869,7 +10412,8 @@ class Experiment:
         updateRDML=False,
         calcCorrection=True,
     ):
-        """Corrects inter run differences. Modifies the cq values and returns a json with additional data.
+        """Corrects inter run differences. Modifies the cq values and returns a
+        json with additional data.
 
         Args:
             self: The class self parameter.
@@ -10109,7 +10653,9 @@ class Experiment:
                     bOverlap = {}
                     if cRunA == cRunB:
                         for tar in res["target"]:
-                            res["target"][tar]["overlap"][cRunA][cRunA] = condCount[tar]
+                            res["target"][tar]["overlap"][cRunA][
+                                cRunA
+                            ] = condCount[tar]
                         continue
                     if cRunA < cRunB:
                         continue
@@ -10144,7 +10690,9 @@ class Experiment:
                             else:
                                 if sample not in possible[target]:
                                     continue
-                            excluded = _get_first_child_text(react_data, "excl")
+                            excluded = _get_first_child_text(
+                                react_data, "excl"
+                            )
                             if excluded != "":
                                 continue
                             n0Val = _get_first_child_text(react_data, "N0")
@@ -10158,7 +10706,9 @@ class Experiment:
                                 continue
                             if n0Val <= 0.0:
                                 continue
-                            corrFVal = _get_first_child_text(react_data, "corrF")
+                            corrFVal = _get_first_child_text(
+                                react_data, "corrF"
+                            )
                             if corrFVal != "":
                                 try:
                                     corrFVal = float(corrFVal)
@@ -10178,14 +10728,22 @@ class Experiment:
                                 if translSamp not in bOverlap[target]:
                                     bOverlap[target][translSamp] = []
                                 bOverlap[target][translSamp].append(n0Val)
-                                res["target"][target]["overlap"][cRunA][cRunB] += 1
-                                res["target"][target]["overlap"][cRunB][cRunA] += 1
+                                res["target"][target]["overlap"][cRunA][
+                                    cRunB
+                                ] += 1
+                                res["target"][target]["overlap"][cRunB][
+                                    cRunA
+                                ] += 1
                             else:
                                 if sample not in bOverlap[target]:
                                     bOverlap[target][sample] = []
                                 bOverlap[target][sample].append(n0Val)
-                                res["target"][target]["overlap"][cRunA][cRunB] += 1
-                                res["target"][target]["overlap"][cRunB][cRunA] += 1
+                                res["target"][target]["overlap"][cRunA][
+                                    cRunB
+                                ] += 1
+                                res["target"][target]["overlap"][cRunB][
+                                    cRunA
+                                ] += 1
 
                     plateSum = 0.0
                     plateNum = 0
@@ -10238,7 +10796,9 @@ class Experiment:
                 for mRow in range(0, len(allRuns)):
                     for mCol in range(0, len(allRuns)):
                         if -9.0 < res["plate"]["matrix"][mRow][mCol] < 0.0:
-                            _pco_fixPlateMatix(res["plate"]["matrix"], mRow, mCol)
+                            _pco_fixPlateMatix(
+                                res["plate"]["matrix"], mRow, mCol
+                            )
             for mRow in range(0, len(allRuns)):
                 for mCol in range(0, len(allRuns)):
                     if -9.0 < res["plate"]["matrix"][mRow][mCol] < 0.0:
@@ -10250,7 +10810,9 @@ class Experiment:
                 linNum = 0
                 for fRunB in range(0, len(allRuns)):
                     if res["plate"]["matrix"][fRunB][fRunA] > 0.0:
-                        linSum += math.log(res["plate"]["matrix"][fRunB][fRunA])
+                        linSum += math.log(
+                            res["plate"]["matrix"][fRunB][fRunA]
+                        )
                         linNum += 1
                 if linNum > 0:
                     curRes = math.exp(linSum / linNum)
@@ -10266,28 +10828,31 @@ class Experiment:
             errSumTr = 0.0
             errNum = 0
             for pRunA in range(0, len(allRuns)):
-                res["target"][tar]["runAmpEffSENum"][pRunA] = tarPara[tar]["Err_Num"][
-                    pRunA
-                ]
+                res["target"][tar]["runAmpEffSENum"][pRunA] = tarPara[tar][
+                    "Err_Num"
+                ][pRunA]
                 if tarPara[tar]["Err_Num"][pRunA] > 0:
                     plateSE = (
-                        tarPara[tar]["Err_Sum"][pRunA] / tarPara[tar]["Err_Num"][pRunA]
+                        tarPara[tar]["Err_Sum"][pRunA]
+                        / tarPara[tar]["Err_Num"][pRunA]
                     )
                     res["target"][tar]["runAmpEffSE"][pRunA] = plateSE
                     errSumTr += (
                         plateSE * math.sqrt(tarPara[tar]["Err_Num"][pRunA])
                     ) ** 2
                     errNum += tarPara[tar]["Err_Num"][pRunA]
-                res["target"][tar]["runAmpEffNum"][pRunA] = tarPara[tar]["Run_Eff_Num"][
-                    pRunA
-                ]
+                res["target"][tar]["runAmpEffNum"][pRunA] = tarPara[tar][
+                    "Run_Eff_Num"
+                ][pRunA]
                 if tarPara[tar]["Run_Eff_Num"][pRunA] > 0:
                     res["target"][tar]["runAmpEff"][pRunA] = (
                         tarPara[tar]["Run_Eff_Sum"][pRunA]
                         / tarPara[tar]["Run_Eff_Num"][pRunA]
                     )
             if errNum > 0:
-                res["target"][tar]["ampEffSE"] = math.sqrt(errSumTr) / math.sqrt(errNum)
+                res["target"][tar]["ampEffSE"] = math.sqrt(
+                    errSumTr
+                ) / math.sqrt(errNum)
 
         if thres_Num > 0:
             res["threshold"] = math.exp(thres_Sum / thres_Num)
@@ -10299,7 +10864,8 @@ class Experiment:
                         + '" does not have any reactions with amplification. Correction is not possible.'
                     )
                 res["plate"]["threshold"][pRunA] = math.exp(
-                    res["plate"]["Thres_Sum"][pRunA] / res["plate"]["Thres_Num"][pRunA]
+                    res["plate"]["Thres_Sum"][pRunA]
+                    / res["plate"]["Thres_Num"][pRunA]
                 )
         else:
             res["threshold"] = -1.0
@@ -10316,12 +10882,16 @@ class Experiment:
         res["tsv"]["run_correction_factors"] += "\nCorrection Factor"
         for tCorr in res["plate"]["corrP"]:
             if tCorr > 0.0:
-                res["tsv"]["run_correction_factors"] += "\t" + "{:.4f}".format(tCorr)
+                res["tsv"]["run_correction_factors"] += "\t" + "{:.4f}".format(
+                    tCorr
+                )
             else:
                 res["tsv"]["run_correction_factors"] += "\tNot available"
         res["tsv"]["run_correction_factors"] += "\n"
 
-        res["tsv"]["pcr_efficiency"] = "Target\tCombined\tSE Combined" + runLine
+        res["tsv"]["pcr_efficiency"] = (
+            "Target\tCombined\tSE Combined" + runLine
+        )
         res["tsv"]["pcr_efficiency"] += "\n"
         for tar in sortTargets:
             res["tsv"]["pcr_efficiency"] += tar
@@ -10338,7 +10908,9 @@ class Experiment:
             for pRunA in range(0, len(allRuns)):
                 tCorr = res["target"][tar]["runAmpEff"][pRunA]
                 if tCorr > 0.0:
-                    res["tsv"]["pcr_efficiency"] += "\t" + "{:.4f}".format(tCorr)
+                    res["tsv"]["pcr_efficiency"] += "\t" + "{:.4f}".format(
+                        tCorr
+                    )
                 else:
                     res["tsv"]["pcr_efficiency"] += "\tNot available"
             res["tsv"]["pcr_efficiency"] += "\n"
@@ -10388,7 +10960,12 @@ class Experiment:
                     for react_data in react_datas:
                         tarId = _get_first_child(react_data, "tar")
                         _change_subelement(
-                            react_data, "corrP", dataXMLelements, "-1.0", True, "string"
+                            react_data,
+                            "corrP",
+                            dataXMLelements,
+                            "-1.0",
+                            True,
+                            "string",
                         )
                         _change_subelement(
                             react_data,
@@ -10479,9 +11056,13 @@ class Experiment:
         """
 
         if method not in ["reference", "cq-guess", "optical"]:
-            raise RdmlError("Error: Unknown method used in absoluteQuantification.")
+            raise RdmlError(
+                "Error: Unknown method used in absoluteQuantification."
+            )
         if quantUnit not in ["cop", "fold", "dil", "nMol", "ng", "other"]:
-            raise RdmlError("Error: Unknown quantUnit used in absoluteQuantification.")
+            raise RdmlError(
+                "Error: Unknown quantUnit used in absoluteQuantification."
+            )
         if overlapType not in ["samples", "annotation"]:
             raise RdmlError("Error: Unknown overlap type.")
         if overlapType == "annotation":
@@ -10546,14 +11127,14 @@ class Experiment:
                         overSelAnno[selAnno] = {}
                         overSelAnno[selAnno]["conf"] = False
                         overSelAnno[selAnno]["data"] = {}
-                        overSelAnno[selAnno]["data"][currSelVal] = samAllAnnos[samId][
-                            selAnno
-                        ]
+                        overSelAnno[selAnno]["data"][currSelVal] = samAllAnnos[
+                            samId
+                        ][selAnno]
                     else:
                         if currSelVal not in overSelAnno[selAnno]["data"]:
-                            overSelAnno[selAnno]["data"][currSelVal] = samAllAnnos[
-                                samId
-                            ][selAnno]
+                            overSelAnno[selAnno]["data"][
+                                currSelVal
+                            ] = samAllAnnos[samId][selAnno]
                         if (
                             overSelAnno[selAnno]["data"][currSelVal]
                             != samAllAnnos[samId][selAnno]
@@ -10611,10 +11192,18 @@ class Experiment:
             res["standard"][tar]["ampEffSE"] = -1.0
             res["target"][tar]["ampliconLen"] = 100
             res["target"][tar]["ampEff"] = interRun["target"][tar]["ampEff"]
-            res["target"][tar]["ampEffSE"] = interRun["target"][tar]["ampEffSE"]
-            res["target"][tar]["runAmpEff"] = interRun["target"][tar]["runAmpEff"]
-            res["target"][tar]["runAmpEffSE"] = interRun["target"][tar]["runAmpEffSE"]
-            res["target"][tar]["runAmpEffNum"] = interRun["target"][tar]["runAmpEffNum"]
+            res["target"][tar]["ampEffSE"] = interRun["target"][tar][
+                "ampEffSE"
+            ]
+            res["target"][tar]["runAmpEff"] = interRun["target"][tar][
+                "runAmpEff"
+            ]
+            res["target"][tar]["runAmpEffSE"] = interRun["target"][tar][
+                "runAmpEffSE"
+            ]
+            res["target"][tar]["runAmpEffNum"] = interRun["target"][tar][
+                "runAmpEffNum"
+            ]
             res["target"][tar]["runAmpEffSENum"] = interRun["target"][tar][
                 "runAmpEffSENum"
             ]
@@ -10691,14 +11280,16 @@ class Experiment:
                             if currTar in res["quantity"][qUnit]["samples"]:
                                 if (
                                     qValue
-                                    not in res["quantity"][qUnit]["samples"][currTar]
+                                    not in res["quantity"][qUnit]["samples"][
+                                        currTar
+                                    ]
                                 ):
                                     res["quantity"][qUnit]["samples"][currTar][
                                         qValue
                                     ] = {}
-                                res["quantity"][qUnit]["samples"][currTar][qValue][
-                                    samId
-                                ] = 1
+                                res["quantity"][qUnit]["samples"][currTar][
+                                    qValue
+                                ][samId] = 1
                                 res["quantity"][qUnit]["count"] += 1
 
         optQuantity = {}
@@ -10728,10 +11319,14 @@ class Experiment:
                 if seqEle is not None:
                     ampliconEle = _get_first_child(seqEle, "amplicon")
                     if ampliconEle is not None:
-                        amplicon = _get_first_child_text(ampliconEle, "sequence")
+                        amplicon = _get_first_child_text(
+                            ampliconEle, "sequence"
+                        )
                         if amplicon != "":
                             if len(amplicon) > 20:
-                                res["target"][tarId]["ampliconLen"] = len(amplicon)
+                                res["target"][tarId]["ampliconLen"] = len(
+                                    amplicon
+                                )
 
         if res["threshold"] > 0:
             if method == "reference":
@@ -10746,10 +11341,16 @@ class Experiment:
                         stdCurves[qTar][runA["id"]]["Cq"] = []
                     if len(res["quantity"][quantUnit]["samples"][qTar]) > 0:
                         sortValues = sorted(
-                            list(res["quantity"][quantUnit]["samples"][qTar].keys()),
+                            list(
+                                res["quantity"][quantUnit]["samples"][
+                                    qTar
+                                ].keys()
+                            ),
                             reverse=True,
                         )
-                        for qValue in res["quantity"][quantUnit]["samples"][qTar]:
+                        for qValue in res["quantity"][quantUnit]["samples"][
+                            qTar
+                        ]:
                             geo_sum = 0.0
                             geo_num = 0
                             selSamples = list(
@@ -10759,7 +11360,9 @@ class Experiment:
                             )
                             for qSamp in selSamples:
                                 for react_data in stdSamples[qTar][qSamp]:
-                                    corrFac = _get_first_child_text(react_data, "corrF")
+                                    corrFac = _get_first_child_text(
+                                        react_data, "corrF"
+                                    )
                                     calcCorr = 1.0
                                     if not corrFac == "":
                                         try:
@@ -10784,7 +11387,9 @@ class Experiment:
                                         if calcPlate == 0.0:
                                             calcCorr = 0.0
                                         calcCorr = calcCorr / calcPlate
-                                    calcN0 = _get_first_child_text(react_data, "N0")
+                                    calcN0 = _get_first_child_text(
+                                        react_data, "N0"
+                                    )
                                     if calcCorr > 0.0001:
                                         if not calcN0 == "":
                                             try:
@@ -10794,42 +11399,78 @@ class Experiment:
                                             else:
                                                 if math.isfinite(calcN0):
                                                     finalN0 = calcCorr * calcN0
-                                                    geo_sum += math.log(finalN0)
+                                                    geo_sum += math.log(
+                                                        finalN0
+                                                    )
                                                     geo_num += 1
                                                     reactEff = 2.0
-                                                    readEff = _get_first_child_text(
-                                                        react_data, "ampEff"
+                                                    readEff = (
+                                                        _get_first_child_text(
+                                                            react_data,
+                                                            "ampEff",
+                                                        )
                                                     )
                                                     if readEff != "":
                                                         try:
-                                                            reactEff = float(readEff)
+                                                            reactEff = float(
+                                                                readEff
+                                                            )
                                                         except ValueError:
                                                             reactEff = 2.0
                                                     if reactEff > 0.0:
                                                         if finalN0 > 0.0:
                                                             reactCq = (
                                                                 math.log10(
-                                                                    res["threshold"]
+                                                                    res[
+                                                                        "threshold"
+                                                                    ]
                                                                 )
-                                                                - math.log10(finalN0)
-                                                            ) / math.log10(reactEff)
+                                                                - math.log10(
+                                                                    finalN0
+                                                                )
+                                                            ) / math.log10(
+                                                                reactEff
+                                                            )
                                                             react = (
                                                                 react_data.getparent()
                                                             )
-                                                            run = react.getparent()
-                                                            if "id" in run.attrib:
-                                                                stdCurves[qTar][
-                                                                    run.attrib["id"]
-                                                                ]["x"].append(
-                                                                    math.log10(qValue)
+                                                            run = (
+                                                                react.getparent()
+                                                            )
+                                                            if (
+                                                                "id"
+                                                                in run.attrib
+                                                            ):
+                                                                stdCurves[
+                                                                    qTar
+                                                                ][
+                                                                    run.attrib[
+                                                                        "id"
+                                                                    ]
+                                                                ][
+                                                                    "x"
+                                                                ].append(
+                                                                    math.log10(
+                                                                        qValue
+                                                                    )
                                                                 )
-                                                                stdCurves[qTar][
-                                                                    run.attrib["id"]
-                                                                ]["Cq"].append(reactCq)
+                                                                stdCurves[
+                                                                    qTar
+                                                                ][
+                                                                    run.attrib[
+                                                                        "id"
+                                                                    ]
+                                                                ][
+                                                                    "Cq"
+                                                                ].append(
+                                                                    reactCq
+                                                                )
                             if qValue == sortValues[0]:
                                 if geo_num > 0:
                                     geoN0 = math.exp(geo_sum / geo_num)
-                                    res["fluorN0Fact"][qTar] = geoN0 / sortValues[0]
+                                    res["fluorN0Fact"][qTar] = (
+                                        geoN0 / sortValues[0]
+                                    )
 
                 stdCurvesCsv = ""
                 for tar in stdCurves:
@@ -10844,10 +11485,12 @@ class Experiment:
                         runID = runEle["id"]
                         if runID in stdCurves[tar]:
                             if len(stdCurves[tar][runID]["x"]) > 0:
-                                curvePCREff = res["target"][tar]["runAmpEff"][runPos]
-                                curvePCREffSE = res["target"][tar]["runAmpEffSE"][
+                                curvePCREff = res["target"][tar]["runAmpEff"][
                                     runPos
                                 ]
+                                curvePCREffSE = res["target"][tar][
+                                    "runAmpEffSE"
+                                ][runPos]
                                 curveLinReg = scp.stats.linregress(
                                     x=stdCurves[tar][runID]["x"],
                                     y=stdCurves[tar][runID]["Cq"],
@@ -10858,30 +11501,52 @@ class Experiment:
                                 dilPCREffSE = float(curveLinReg.stderr)
                                 rSquared = float(curveLinReg.rvalue) ** 2
                                 dilFactor = 10 * float(
-                                    np.power(curvePCREff, -1.0 / np.log10(dilPCREff))
+                                    np.power(
+                                        curvePCREff, -1.0 / np.log10(dilPCREff)
+                                    )
                                 )
 
                                 effSum += (
                                     dilPCREff
-                                    * res["target"][tar]["runAmpEffNum"][runPos]
+                                    * res["target"][tar]["runAmpEffNum"][
+                                        runPos
+                                    ]
                                 )
-                                effNum += res["target"][tar]["runAmpEffNum"][runPos]
+                                effNum += res["target"][tar]["runAmpEffNum"][
+                                    runPos
+                                ]
                                 errSum += (
                                     dilPCREffSE
                                     * math.sqrt(
-                                        res["target"][tar]["runAmpEffSENum"][runPos]
+                                        res["target"][tar]["runAmpEffSENum"][
+                                            runPos
+                                        ]
                                     )
                                 ) ** 2
-                                errNum += res["target"][tar]["runAmpEffSENum"][runPos]
+                                errNum += res["target"][tar]["runAmpEffSENum"][
+                                    runPos
+                                ]
 
                                 stdCurvesCsv += tar + "\t"
                                 stdCurvesCsv += runID + "\t"
-                                stdCurvesCsv += "{:.4f}".format(curvePCREff) + "\t"
-                                stdCurvesCsv += "{:.4f}".format(curvePCREffSE) + "\t"
-                                stdCurvesCsv += "{:.4f}".format(dilPCREff) + "\t"
-                                stdCurvesCsv += "{:.4f}".format(dilPCREffSE) + "\t"
-                                stdCurvesCsv += "{:.4f}".format(rSquared) + "\t"
-                                stdCurvesCsv += "{:.4f}".format(dilFactor) + "\n"
+                                stdCurvesCsv += (
+                                    "{:.4f}".format(curvePCREff) + "\t"
+                                )
+                                stdCurvesCsv += (
+                                    "{:.4f}".format(curvePCREffSE) + "\t"
+                                )
+                                stdCurvesCsv += (
+                                    "{:.4f}".format(dilPCREff) + "\t"
+                                )
+                                stdCurvesCsv += (
+                                    "{:.4f}".format(dilPCREffSE) + "\t"
+                                )
+                                stdCurvesCsv += (
+                                    "{:.4f}".format(rSquared) + "\t"
+                                )
+                                stdCurvesCsv += (
+                                    "{:.4f}".format(dilFactor) + "\n"
+                                )
 
                     if effNum > 0:
                         finalEff = effSum / effNum
@@ -10893,7 +11558,9 @@ class Experiment:
 
                     stdCurvesCsv += tar + "\t"
                     stdCurvesCsv += "Combined\t"
-                    stdCurvesCsv += "{:.4f}".format(res["target"][tar]["ampEff"]) + "\t"
+                    stdCurvesCsv += (
+                        "{:.4f}".format(res["target"][tar]["ampEff"]) + "\t"
+                    )
                     stdCurvesCsv += (
                         "{:.4f}".format(res["target"][tar]["ampEffSE"]) + "\t"
                     )
@@ -10944,16 +11611,26 @@ class Experiment:
                         for react_data in optSamples[currSamp]:
                             adps = _get_all_children(react_data, "adp")
                             for adp in adps:
-                                cyc = int(float(_get_first_child_text(adp, "cyc")))
+                                cyc = int(
+                                    float(_get_first_child_text(adp, "cyc"))
+                                )
                                 if cyc < 6:
                                     if currConc > 0.000001:
                                         fluor_sum += math.log(
-                                            float(_get_first_child_text(adp, "fluor"))
+                                            float(
+                                                _get_first_child_text(
+                                                    adp, "fluor"
+                                                )
+                                            )
                                         )
                                         fluor_num += 1
                                     else:
                                         neg_sum += math.log(
-                                            float(_get_first_child_text(adp, "fluor"))
+                                            float(
+                                                _get_first_child_text(
+                                                    adp, "fluor"
+                                                )
+                                            )
                                         )
                                         neg_num += 1
                     if fluor_num > 0:
@@ -10964,26 +11641,38 @@ class Experiment:
                 thresCopies = -1.0
                 for currConc in concFluor:
                     currFluor = concFluor[currConc] - negFluor
-                    if float(res["threshold"]) + negFluor < currFluor < finalFluor:
+                    if (
+                        float(res["threshold"]) + negFluor
+                        < currFluor
+                        < finalFluor
+                    ):
                         finalFluor = currFluor
                         finalConc = currConc
                         copies = (
                             currConc * mol / (100 * baseWeight * 1e9)
                         )  # currConc in ng, 100 bp
-                        thresCopies = copies * float(res["threshold"]) / currFluor
+                        thresCopies = (
+                            copies * float(res["threshold"]) / currFluor
+                        )
 
                 if thresCopies > 0.0:
                     fluorN0Fact = float(res["threshold"]) / thresCopies
                     for tar in interRun["target"]:
                         res["fluorN0Fact"][tar] = (
-                            fluorN0Fact * res["target"][tar]["ampliconLen"] / 100
+                            fluorN0Fact
+                            * res["target"][tar]["ampliconLen"]
+                            / 100
                         )
 
             res["tsv"][
                 "fluorN0Fact"
             ] = "Target\tQuant. Fact.\tAmplicon Length\tPCR Efficiency\tTreshold\t"
-            res["tsv"]["fluorN0Fact"] += _niceQuantityType("cop") + " at Threshold\t"
-            res["tsv"]["fluorN0Fact"] += _niceQuantityType("ng") + " at Threshold\n"
+            res["tsv"]["fluorN0Fact"] += (
+                _niceQuantityType("cop") + " at Threshold\t"
+            )
+            res["tsv"]["fluorN0Fact"] += (
+                _niceQuantityType("ng") + " at Threshold\n"
+            )
             for tar in sortTargets:
                 res["tsv"]["fluorN0Fact"] += tar + "\t"
                 res["tsv"]["fluorN0Fact"] += (
@@ -10995,12 +11684,20 @@ class Experiment:
                 res["tsv"]["fluorN0Fact"] += (
                     "{:.4f}".format(res["target"][tar]["ampEff"]) + "\t"
                 )
-                res["tsv"]["fluorN0Fact"] += "{:.4f}".format(res["threshold"]) + "\t"
+                res["tsv"]["fluorN0Fact"] += (
+                    "{:.4f}".format(res["threshold"]) + "\t"
+                )
                 if res["fluorN0Fact"][tar] > 0.0:
                     copiesCalc = res["threshold"] / res["fluorN0Fact"][tar]
                     nMolCalc = 1e9 * copiesCalc / mol
-                    ngCalc = baseWeight * nMolCalc * res["target"][tar]["ampliconLen"]
-                    res["tsv"]["fluorN0Fact"] += "{:.2e}".format(copiesCalc) + "\t"
+                    ngCalc = (
+                        baseWeight
+                        * nMolCalc
+                        * res["target"][tar]["ampliconLen"]
+                    )
+                    res["tsv"]["fluorN0Fact"] += (
+                        "{:.2e}".format(copiesCalc) + "\t"
+                    )
                     res["tsv"]["fluorN0Fact"] += "{:.4f}".format(ngCalc)
                 else:
                     res["tsv"]["fluorN0Fact"] += "\t"
@@ -11009,8 +11706,12 @@ class Experiment:
             if method == "optical":
                 csvStandard = ""
                 if neg_num > 0:
-                    csvStandard += "Threshold\t" + _niceQuantityType("ng") + "\t"
-                    csvStandard += "{:.2f}".format(float(res["threshold"])) + "\t\n"
+                    csvStandard += (
+                        "Threshold\t" + _niceQuantityType("ng") + "\t"
+                    )
+                    csvStandard += (
+                        "{:.2f}".format(float(res["threshold"])) + "\t\n"
+                    )
 
                 csvStandard += "No DNA\t" + _niceQuantityType("ng") + "\t"
                 csvStandard += "{:.2f}".format(negFluor) + "\t\n"
@@ -11018,7 +11719,9 @@ class Experiment:
                 sortedConc = sorted(list(concFluor.keys()))
                 for currConc in sortedConc:
                     csvStandard += (
-                        "{:.2f}".format(currConc) + "\t" + _niceQuantityType("ng")
+                        "{:.2f}".format(currConc)
+                        + "\t"
+                        + _niceQuantityType("ng")
                     )
                     resFluor = concFluor[currConc] - negFluor
                     csvStandard += "\t" + "{:.2f}".format(resFluor)
@@ -11037,23 +11740,29 @@ class Experiment:
                         continue
                     for oTar in res["quantity"][oUnit]["samples"]:
                         sortStdValues = sorted(
-                            list(res["quantity"][oUnit]["samples"][oTar].keys()),
+                            list(
+                                res["quantity"][oUnit]["samples"][oTar].keys()
+                            ),
                             reverse=True,
                         )
                         for oValue in sortStdValues:
-                            for oSample in res["quantity"][oUnit]["samples"][oTar][
-                                oValue
-                            ]:
+                            for oSample in res["quantity"][oUnit]["samples"][
+                                oTar
+                            ][oValue]:
                                 if oTar in stdSamples:
                                     if oSample in stdSamples[oTar]:
-                                        for react_data in stdSamples[oTar][oSample]:
+                                        for react_data in stdSamples[oTar][
+                                            oSample
+                                        ]:
                                             react = react_data.getparent()
                                             run = react.getparent()
                                             if "id" in run.attrib:
                                                 csvStandard += run.attrib["id"]
                                             csvStandard += "\t"
                                             if "id" in react.attrib:
-                                                csvStandard += react.attrib["id"]
+                                                csvStandard += react.attrib[
+                                                    "id"
+                                                ]
                                             csvStandard += "\t" + oSample
                                             csvStandard += "\t" + oTar
                                             if oUnit == "cop":
@@ -11090,7 +11799,9 @@ class Experiment:
                                                     calcPlate = float(plateFac)
                                                 except ValueError:
                                                     calcPlate = 0.0
-                                                if not math.isfinite(calcPlate):
+                                                if not math.isfinite(
+                                                    calcPlate
+                                                ):
                                                     calcCorr = 0.0
                                                 if calcPlate == 0.0:
                                                     calcCorr = 0.0
@@ -11105,13 +11816,18 @@ class Experiment:
                                                     except ValueError:
                                                         pass
                                                     else:
-                                                        if math.isfinite(calcN0):
+                                                        if math.isfinite(
+                                                            calcN0
+                                                        ):
                                                             if (
-                                                                res["fluorN0Fact"][oTar]
+                                                                res[
+                                                                    "fluorN0Fact"
+                                                                ][oTar]
                                                                 > 0.0
                                                             ):
                                                                 finalN0 = (
-                                                                    calcCorr * calcN0
+                                                                    calcCorr
+                                                                    * calcN0
                                                                 )
                                                                 calcQuant = (
                                                                     finalN0
@@ -11119,20 +11835,21 @@ class Experiment:
                                                                         "fluorN0Fact"
                                                                     ][oTar]
                                                                 )
-                                                                if oUnit == "cop":
-                                                                    csvStandard += (
-                                                                        "{:.2f}".format(
-                                                                            calcQuant
-                                                                        )
+                                                                if (
+                                                                    oUnit
+                                                                    == "cop"
+                                                                ):
+                                                                    csvStandard += "{:.2f}".format(
+                                                                        calcQuant
                                                                     )
                                                                 else:
-                                                                    csvStandard += (
-                                                                        "{:.4e}".format(
-                                                                            calcQuant
-                                                                        )
+                                                                    csvStandard += "{:.4e}".format(
+                                                                        calcQuant
                                                                     )
                                             csvStandard += (
-                                                "\t" + _niceQuantityType(oUnit) + "\n"
+                                                "\t"
+                                                + _niceQuantityType(oUnit)
+                                                + "\n"
                                             )
                 if csvStandard != "":
                     res["tsv"][
@@ -11164,13 +11881,17 @@ class Experiment:
                             ] = transSamTar[sample][target]
                     res["tec_data"][sample][target]["target_type"] = ""
                     if target in tarType:
-                        res["tec_data"][sample][target]["target_type"] = tarType[target]
+                        res["tec_data"][sample][target][
+                            "target_type"
+                        ] = tarType[target]
                     res["tec_data"][sample][target]["n_tec_rep"] = len(
                         n0data["N0"][sample][target]
                     )
                     res["tec_data"][sample][target]["raw_vals"] = []
                     if len(n0data["N0"][sample][target]) == 0:
-                        res["tec_data"][sample][target]["error"] += "No N0 values;"
+                        res["tec_data"][sample][target][
+                            "error"
+                        ] += "No N0 values;"
                         res["tec_data"][sample][target]["cop_mean"] = -1.0
                         res["tec_data"][sample][target]["cop_sd"] = -1.0
                         res["tec_data"][sample][target]["cop_cv"] = -1.0
@@ -11180,7 +11901,9 @@ class Experiment:
                                 n0Val / res["fluorN0Fact"][target]
                             )
                         res["tec_data"][sample][target]["cop_mean"] = float(
-                            np.mean(res["tec_data"][sample][target]["raw_vals"])
+                            np.mean(
+                                res["tec_data"][sample][target]["raw_vals"]
+                            )
                         )
                         if len(n0data["N0"][sample][target]) == 1:
                             res["tec_data"][sample][target]["cop_sd"] = 0.0
@@ -11188,7 +11911,10 @@ class Experiment:
                         else:
                             res["tec_data"][sample][target]["cop_sd"] = float(
                                 np.std(
-                                    res["tec_data"][sample][target]["raw_vals"], ddof=1
+                                    res["tec_data"][sample][target][
+                                        "raw_vals"
+                                    ],
+                                    ddof=1,
                                 )
                             )
                             calcCV = (
@@ -11210,21 +11936,32 @@ class Experiment:
                             if sample in samSelAnno:
                                 if target not in res["anno_data"]:
                                     res["anno_data"][target] = {}
-                                if samSelAnno[sample] not in res["anno_data"][target]:
-                                    res["anno_data"][target][samSelAnno[sample]] = {}
+                                if (
+                                    samSelAnno[sample]
+                                    not in res["anno_data"][target]
+                                ):
+                                    res["anno_data"][target][
+                                        samSelAnno[sample]
+                                    ] = {}
                                 if (
                                     "raw_vals"
-                                    not in res["anno_data"][target][samSelAnno[sample]]
+                                    not in res["anno_data"][target][
+                                        samSelAnno[sample]
+                                    ]
                                 ):
-                                    res["anno_data"][target][samSelAnno[sample]][
-                                        "raw_vals"
-                                    ] = []
+                                    res["anno_data"][target][
+                                        samSelAnno[sample]
+                                    ]["raw_vals"] = []
                                 res["anno_data"][target][samSelAnno[sample]][
                                     "raw_vals"
-                                ].append(res["tec_data"][sample][target]["cop_mean"])
+                                ].append(
+                                    res["tec_data"][sample][target]["cop_mean"]
+                                )
                 for target in res["anno_data"]:
                     for annoVal in res["anno_data"][target]:
-                        annoCollVals = res["anno_data"][target][annoVal]["raw_vals"]
+                        annoCollVals = res["anno_data"][target][annoVal][
+                            "raw_vals"
+                        ]
                         if len(annoCollVals) == 0:
                             res["anno_data"][target][annoVal]["mean"] = -1.0
                             res["anno_data"][target][annoVal]["sem"] = -1.0
@@ -11235,15 +11972,17 @@ class Experiment:
                             if len(annoCollVals) == 1:
                                 res["anno_data"][target][annoVal]["sem"] = 0.0
                             else:
-                                res["anno_data"][target][annoVal]["sem"] = float(
-                                    scp.sem(annoCollVals)
-                                )
+                                res["anno_data"][target][annoVal][
+                                    "sem"
+                                ] = float(scp.sem(annoCollVals))
 
             res["tsv"]["technical_data"] = "Sample\tSample Type\t"
             if inclAnnotation:
                 for currAnno in sortedAnnoKeys:
                     res["tsv"]["technical_data"] += currAnno + "\t"
-            res["tsv"]["technical_data"] += "Target\tTarget Type\tError\tNote\t"
+            res["tsv"][
+                "technical_data"
+            ] += "Target\tTarget Type\tError\tNote\t"
             res["tsv"][
                 "technical_data"
             ] += "n Tec. Rep.\tUnit\tMean\tSD\tCV\tIndividual Values\n"
@@ -11273,40 +12012,57 @@ class Experiment:
                         res["tec_data"][sample][target]["note"] + "\t"
                     )
                     res["tsv"]["technical_data"] += (
-                        str(res["tec_data"][sample][target]["n_tec_rep"]) + "\t"
+                        str(res["tec_data"][sample][target]["n_tec_rep"])
+                        + "\t"
                     )
                     res["tsv"]["technical_data"] += res["absUnit"] + "\t"
                     if res["absUnit"] == "cop":
                         res["tsv"]["technical_data"] += (
-                            "{:.2f}".format(res["tec_data"][sample][target]["cop_mean"])
+                            "{:.2f}".format(
+                                res["tec_data"][sample][target]["cop_mean"]
+                            )
                             + "\t"
                         )
                         res["tsv"]["technical_data"] += (
-                            "{:.6f}".format(res["tec_data"][sample][target]["cop_sd"])
+                            "{:.6f}".format(
+                                res["tec_data"][sample][target]["cop_sd"]
+                            )
                             + "\t"
                         )
                         res["tsv"]["technical_data"] += (
-                            "{:.2f}".format(res["tec_data"][sample][target]["cop_cv"])
+                            "{:.2f}".format(
+                                res["tec_data"][sample][target]["cop_cv"]
+                            )
                             + "\t"
                         )
-                        for indivVal in res["tec_data"][sample][target]["raw_vals"]:
+                        for indivVal in res["tec_data"][sample][target][
+                            "raw_vals"
+                        ]:
                             res["tsv"]["technical_data"] += (
                                 "{:.2f}".format(indivVal) + ";"
                             )
                     else:
                         res["tsv"]["technical_data"] += (
-                            "{:.6e}".format(res["tec_data"][sample][target]["cop_mean"])
+                            "{:.6e}".format(
+                                res["tec_data"][sample][target]["cop_mean"]
+                            )
                             + "\t"
                         )
                         res["tsv"]["technical_data"] += (
-                            "{:.6e}".format(res["tec_data"][sample][target]["cop_sd"])
+                            "{:.6e}".format(
+                                res["tec_data"][sample][target]["cop_sd"]
+                            )
                             + "\t"
                         )
                         res["tsv"]["technical_data"] += (
-                            "{:.6f}".format(res["tec_data"][sample][target]["cop_cv"])
+                            "{:.6f}".format(
+                                res["tec_data"][sample][target]["cop_cv"]
+                            )
                             + "\t"
                         )
-                        for indivVal in res["tec_data"][sample][target]["raw_vals"]:
+                        for indivVal in res["tec_data"][sample][target][
+                            "raw_vals"
+                        ]:
                             res["tsv"]["technical_data"] += (
                                 "{:.4e}".format(indivVal) + ";"
                             )
@@ -11342,21 +12098,32 @@ class Experiment:
                                     continue
                                 annoData = ""
                                 if currAnno in overSelAnno:
-                                    if annoVal in overSelAnno[currAnno]["data"]:
-                                        annoData = overSelAnno[currAnno]["data"][
-                                            annoVal
-                                        ]
-                                res["tsv"]["annotation_data"] += annoData + "\t"
+                                    if (
+                                        annoVal
+                                        in overSelAnno[currAnno]["data"]
+                                    ):
+                                        annoData = overSelAnno[currAnno][
+                                            "data"
+                                        ][annoVal]
+                                res["tsv"]["annotation_data"] += (
+                                    annoData + "\t"
+                                )
                         res["tsv"]["annotation_data"] += target + "\t"
                         res["tsv"]["annotation_data"] += (
-                            "{:.4f}".format(res["anno_data"][target][annoVal]["mean"])
+                            "{:.4f}".format(
+                                res["anno_data"][target][annoVal]["mean"]
+                            )
                             + "\t"
                         )
                         res["tsv"]["annotation_data"] += (
-                            "{:.4f}".format(res["anno_data"][target][annoVal]["sem"])
+                            "{:.4f}".format(
+                                res["anno_data"][target][annoVal]["sem"]
+                            )
                             + "\t"
                         )
-                        for indivVal in res["anno_data"][target][annoVal]["raw_vals"]:
+                        for indivVal in res["anno_data"][target][annoVal][
+                            "raw_vals"
+                        ]:
                             res["tsv"]["annotation_data"] += (
                                 "{:.4f}".format(indivVal) + ";"
                             )
@@ -11373,7 +12140,8 @@ class Experiment:
         saveResultsSVG=False,
         maxRef=-1,
     ):
-        """Finds most stable reference genes. Returns a json with additional data.
+        """Finds most stable reference genes. Returns a json with additional
+        data.
 
         Args:
             self: The class self parameter.
@@ -11398,7 +12166,9 @@ class Experiment:
             if selAnnotation == "":
                 raise RdmlError("Error: Selection of annotation required.")
             if selAnnoValue == "":
-                raise RdmlError("Error: Selection of annotation value required.")
+                raise RdmlError(
+                    "Error: Selection of annotation value required."
+                )
 
         if saveResultsSVG:
             saveResultsCSV = True
@@ -11498,7 +12268,9 @@ class Experiment:
                     + " reference genes were given."
                 )
         if len(res["reference"]) < 2:
-            raise RdmlError("Error: geNorm requires at least two reference genes.")
+            raise RdmlError(
+                "Error: geNorm requires at least two reference genes."
+            )
         if len(res["conditions"]) < 2:
             raise RdmlError("Error: geNorm requires at least two conditions.")
 
@@ -11559,7 +12331,9 @@ class Experiment:
                         if math.isfinite(corrPVal):
                             if corrPVal != 0.0:
                                 n0Val /= corrPVal
-                    n0_sum[lookupCond[sample], lookupTar[target]] += np.log(n0Val)
+                    n0_sum[lookupCond[sample], lookupTar[target]] += np.log(
+                        n0Val
+                    )
                     n0_num[lookupCond[sample], lookupTar[target]] += 1
         with np.errstate(divide="ignore", invalid="ignore"):
             n0_geo = np.exp(n0_sum / n0_num)
@@ -11572,16 +12346,26 @@ class Experiment:
             for tar in res["reference"]:
                 res["tsv"]["n0_count"] += tar + "\t"
                 res["tsv"]["n0_values"] += tar + "\t"
-            res["tsv"]["n0_count"] = re.sub(r"\t$", "\n", res["tsv"]["n0_count"])
-            res["tsv"]["n0_values"] = re.sub(r"\t$", "\n", res["tsv"]["n0_values"])
+            res["tsv"]["n0_count"] = re.sub(
+                r"\t$", "\n", res["tsv"]["n0_count"]
+            )
+            res["tsv"]["n0_values"] = re.sub(
+                r"\t$", "\n", res["tsv"]["n0_values"]
+            )
             for row in range(0, len(res["conditions"])):
                 res["tsv"]["n0_count"] += res["conditions"][row] + "\t"
                 res["tsv"]["n0_values"] += res["conditions"][row] + "\t"
                 for col in range(0, len(n0_num[row])):
                     res["tsv"]["n0_count"] += str(n0_num[row, col]) + "\t"
-                    res["tsv"]["n0_values"] += "{:.4e}".format(n0_geo[row, col]) + "\t"
-                res["tsv"]["n0_count"] = re.sub(r"\t$", "\n", res["tsv"]["n0_count"])
-                res["tsv"]["n0_values"] = re.sub(r"\t$", "\n", res["tsv"]["n0_values"])
+                    res["tsv"]["n0_values"] += (
+                        "{:.4e}".format(n0_geo[row, col]) + "\t"
+                    )
+                res["tsv"]["n0_count"] = re.sub(
+                    r"\t$", "\n", res["tsv"]["n0_count"]
+                )
+                res["tsv"]["n0_values"] = re.sub(
+                    r"\t$", "\n", res["tsv"]["n0_values"]
+                )
 
         # Remove empty columns and rows
         if np.amax(n0_num) == 0:
@@ -11604,14 +12388,18 @@ class Experiment:
 
         # print(np.shape(n0_geo)[1])
         if np.shape(n0_geo)[1] < 2:
-            raise RdmlError("Error: geNorm requires at least two reference genes.")
+            raise RdmlError(
+                "Error: geNorm requires at least two reference genes."
+            )
         if np.shape(n0_geo)[0] < 2:
             raise RdmlError("Error: geNorm requires at least two conditions.")
 
         # Calculate M factor
         mFactor = np.zeros(np.shape(n0_geo)[1], dtype=np.float64)
         for col in range(0, np.shape(n0_geo)[1]):
-            logRes = np.log2(n0_geo[:, col][:, None] / np.delete(n0_geo, col, axis=1))
+            logRes = np.log2(
+                n0_geo[:, col][:, None] / np.delete(n0_geo, col, axis=1)
+            )
             stdRes = np.nanstd(logRes, axis=0, ddof=1)
             mFactor[col] = np.nanmean(stdRes)
         #    print(res["reference"][col])
@@ -11635,19 +12423,27 @@ class Experiment:
             res["tsv"]["m_values"] = ""
             for tar in res["m_targets"]:
                 res["tsv"]["m_values"] += tar + "\t"
-            res["tsv"]["m_values"] = re.sub(r"\t$", "\n", res["tsv"]["m_values"])
+            res["tsv"]["m_values"] = re.sub(
+                r"\t$", "\n", res["tsv"]["m_values"]
+            )
             if np.shape(n0_geo)[1] > 2:
                 for mVal in res["m_values"]:
                     res["tsv"]["m_values"] += "{:.6f}".format(mVal) + "\t"
-                res["tsv"]["m_values"] = re.sub(r"\t$", "\n", res["tsv"]["m_values"])
+                res["tsv"]["m_values"] = re.sub(
+                    r"\t$", "\n", res["tsv"]["m_values"]
+                )
 
         if np.shape(n0_geo)[1] > 2:
             res["v_labels"] = []
             res["v_values"] = []
             for col in range(1, np.shape(n0_geo)[1] - 1):
                 res["v_labels"].append("v" + str(col + 1) + "/" + str(col + 2))
-                sum_a = np.nansum(np.log(sorted_n0_geo[:, 0 : col + 1]), axis=1)
-                sum_b = np.nansum(np.log(sorted_n0_geo[:, 0 : col + 2]), axis=1)
+                sum_a = np.nansum(
+                    np.log(sorted_n0_geo[:, 0 : col + 1]), axis=1
+                )
+                sum_b = np.nansum(
+                    np.log(sorted_n0_geo[:, 0 : col + 2]), axis=1
+                )
                 num_a = np.count_nonzero(
                     ~np.isnan(np.log(sorted_n0_geo[:, 0 : col + 1])), axis=1
                 )
@@ -11658,17 +12454,23 @@ class Experiment:
                     geoDiff = np.exp(sum_a / num_a) / np.exp(sum_b / num_b)
                     logDiff = np.log2(geoDiff)
                     vFactor[col - 1] = np.nanstd(logDiff, axis=0, ddof=1)
-                    res["v_values"].append(float(np.nanstd(logDiff, axis=0, ddof=1)))
+                    res["v_values"].append(
+                        float(np.nanstd(logDiff, axis=0, ddof=1))
+                    )
 
         if saveResultsCSV:
             if np.shape(n0_geo)[1] > 2:
                 res["tsv"]["v_values"] = ""
                 for lab in res["v_labels"]:
                     res["tsv"]["v_values"] += lab + "\t"
-                res["tsv"]["v_values"] = re.sub(r"\t$", "\n", res["tsv"]["v_values"])
+                res["tsv"]["v_values"] = re.sub(
+                    r"\t$", "\n", res["tsv"]["v_values"]
+                )
                 for vVal in res["v_values"]:
                     res["tsv"]["v_values"] += "{:.6f}".format(vVal) + "\t"
-                res["tsv"]["v_values"] = re.sub(r"\t$", "\n", res["tsv"]["v_values"])
+                res["tsv"]["v_values"] = re.sub(
+                    r"\t$", "\n", res["tsv"]["v_values"]
+                )
 
         if saveResultsSVG:
             res["svg"] = {}
@@ -11723,7 +12525,8 @@ class Experiment:
         selReferences=[],
         saveResultsCSV=False,
     ):
-        """Calulates relative expression and returns a json with additional data.
+        """Calulates relative expression and returns a json with additional
+        data.
 
         Args:
             self: The class self parameter.
@@ -11800,14 +12603,14 @@ class Experiment:
                         overSelAnno[selAnno] = {}
                         overSelAnno[selAnno]["conf"] = False
                         overSelAnno[selAnno]["data"] = {}
-                        overSelAnno[selAnno]["data"][currSelVal] = samAllAnnos[samId][
-                            selAnno
-                        ]
+                        overSelAnno[selAnno]["data"][currSelVal] = samAllAnnos[
+                            samId
+                        ][selAnno]
                     else:
                         if currSelVal not in overSelAnno[selAnno]["data"]:
-                            overSelAnno[selAnno]["data"][currSelVal] = samAllAnnos[
-                                samId
-                            ][selAnno]
+                            overSelAnno[selAnno]["data"][
+                                currSelVal
+                            ] = samAllAnnos[samId][selAnno]
                         if (
                             overSelAnno[selAnno]["data"][currSelVal]
                             != samAllAnnos[samId][selAnno]
@@ -11825,7 +12628,13 @@ class Experiment:
         for sample in n0data["N0"]:
             res["tec_data"][sample] = {}
             for target in n0data["N0"][sample]:
-                if transSamTar[sample][target] in ["ntc", "nac", "ntp", "nrt", "opt"]:
+                if transSamTar[sample][target] in [
+                    "ntc",
+                    "nac",
+                    "ntp",
+                    "nrt",
+                    "opt",
+                ]:
                     continue
                 res["tec_data"][sample][target] = {}
                 res["tec_data"][sample][target]["sample_type"] = ""
@@ -11833,18 +12642,20 @@ class Experiment:
                 res["tec_data"][sample][target]["note"] = ""
                 if sample in transSamTar:
                     if target in transSamTar[sample]:
-                        res["tec_data"][sample][target]["sample_type"] = transSamTar[
-                            sample
-                        ][target]
+                        res["tec_data"][sample][target][
+                            "sample_type"
+                        ] = transSamTar[sample][target]
                 res["tec_data"][sample][target]["target_type"] = ""
                 if target in tarType:
-                    res["tec_data"][sample][target]["target_type"] = tarType[target]
+                    res["tec_data"][sample][target]["target_type"] = tarType[
+                        target
+                    ]
                 res["tec_data"][sample][target]["n_tec_rep"] = len(
                     n0data["N0"][sample][target]
                 )
-                res["tec_data"][sample][target]["raw_vals"] = n0data["N0"][sample][
-                    target
-                ]
+                res["tec_data"][sample][target]["raw_vals"] = n0data["N0"][
+                    sample
+                ][target]
                 if len(n0data["N0"][sample][target]) == 0:
                     res["tec_data"][sample][target]["error"] += "No N0 values;"
                     res["tec_data"][sample][target]["N0_mean"] = -1.0
@@ -11922,7 +12733,13 @@ class Experiment:
                     continue
                 if target not in transSamTar[sample]:
                     continue
-                if transSamTar[sample][target] in ["ntc", "nac", "ntp", "nrt", "opt"]:
+                if transSamTar[sample][target] in [
+                    "ntc",
+                    "nac",
+                    "ntp",
+                    "nrt",
+                    "opt",
+                ]:
                     continue
                 if sample not in res["tec_data"]:
                     continue
@@ -11934,9 +12751,9 @@ class Experiment:
                     continue
                 res["rel_data"][sample][target] = {}
                 res["rel_data"][sample][target]["rel_expression"] = -1.0
-                res["rel_data"][sample][target]["ref_missing"] = res["ref_data"][
-                    sample
-                ]["ref_missing"]
+                res["rel_data"][sample][target]["ref_missing"] = res[
+                    "ref_data"
+                ][sample]["ref_missing"]
                 if not res["rel_data"][sample][target]["ref_missing"]:
                     if sample not in res["ref_data"]:
                         continue
@@ -11968,24 +12785,37 @@ class Experiment:
                         if sample in samSelAnno:
                             if target not in res["anno_data"]:
                                 res["anno_data"][target] = {}
-                            if samSelAnno[sample] not in res["anno_data"][target]:
-                                res["anno_data"][target][samSelAnno[sample]] = {}
+                            if (
+                                samSelAnno[sample]
+                                not in res["anno_data"][target]
+                            ):
+                                res["anno_data"][target][
+                                    samSelAnno[sample]
+                                ] = {}
                             if (
                                 "raw_vals"
-                                not in res["anno_data"][target][samSelAnno[sample]]
+                                not in res["anno_data"][target][
+                                    samSelAnno[sample]
+                                ]
                             ):
                                 res["anno_data"][target][samSelAnno[sample]][
                                     "raw_vals"
                                 ] = []
                             res["anno_data"][target][samSelAnno[sample]][
                                 "raw_vals"
-                            ].append(res["rel_data"][sample][target]["rel_expression"])
+                            ].append(
+                                res["rel_data"][sample][target][
+                                    "rel_expression"
+                                ]
+                            )
             for target in res["anno_data"]:
                 statTarGroup = []
                 translateGrp = {}
                 tarCountUp = 0
                 for annoVal in res["anno_data"][target]:
-                    annoCollVals = res["anno_data"][target][annoVal]["raw_vals"]
+                    annoCollVals = res["anno_data"][target][annoVal][
+                        "raw_vals"
+                    ]
                     statTarGroup.append(annoCollVals)
                     translateGrp[tarCountUp] = annoVal
                     tarCountUp += 1
@@ -12011,7 +12841,9 @@ class Experiment:
             if inclAnnotation:
                 for currAnno in sortedAnnoKeys:
                     res["tsv"]["technical_data"] += currAnno + "\t"
-            res["tsv"]["technical_data"] += "Target\tTarget Type\tError\tNote\t"
+            res["tsv"][
+                "technical_data"
+            ] += "Target\tTarget Type\tError\tNote\t"
             res["tsv"][
                 "technical_data"
             ] += "n Tec. Rep.\tMean N0\tSD N0\tCV N0\tIndividual Values\n"
@@ -12041,27 +12873,42 @@ class Experiment:
                         res["tec_data"][sample][target]["note"] + "\t"
                     )
                     res["tsv"]["technical_data"] += (
-                        str(res["tec_data"][sample][target]["n_tec_rep"]) + "\t"
-                    )
-                    res["tsv"]["technical_data"] += (
-                        "{:.6e}".format(res["tec_data"][sample][target]["N0_mean"])
+                        str(res["tec_data"][sample][target]["n_tec_rep"])
                         + "\t"
                     )
                     res["tsv"]["technical_data"] += (
-                        "{:.6e}".format(res["tec_data"][sample][target]["N0_sd"]) + "\t"
+                        "{:.6e}".format(
+                            res["tec_data"][sample][target]["N0_mean"]
+                        )
+                        + "\t"
                     )
                     res["tsv"]["technical_data"] += (
-                        "{:.6f}".format(res["tec_data"][sample][target]["N0_cv"]) + "\t"
+                        "{:.6e}".format(
+                            res["tec_data"][sample][target]["N0_sd"]
+                        )
+                        + "\t"
                     )
-                    for indivVal in res["tec_data"][sample][target]["raw_vals"]:
-                        res["tsv"]["technical_data"] += "{:.4e}".format(indivVal) + ";"
+                    res["tsv"]["technical_data"] += (
+                        "{:.6f}".format(
+                            res["tec_data"][sample][target]["N0_cv"]
+                        )
+                        + "\t"
+                    )
+                    for indivVal in res["tec_data"][sample][target][
+                        "raw_vals"
+                    ]:
+                        res["tsv"]["technical_data"] += (
+                            "{:.4e}".format(indivVal) + ";"
+                        )
                     res["tsv"]["technical_data"] += "\n"
 
             res["tsv"]["reference_data"] = "Sample\t"
             if inclAnnotation:
                 for currAnno in sortedAnnoKeys:
                     res["tsv"]["reference_data"] += currAnno + "\t"
-            res["tsv"]["reference_data"] += "Error\tn Ref. Genes\tGeometric Mean N0\n"
+            res["tsv"][
+                "reference_data"
+            ] += "Error\tn Ref. Genes\tGeometric Mean N0\n"
             sortSam = sorted(res["ref_data"].keys())
             for sample in sortSam:
                 res["tsv"]["reference_data"] += sample + "\t"
@@ -12073,7 +12920,9 @@ class Experiment:
                                 annoVal = samAllAnnos[sample][currAnno]
                         res["tsv"]["reference_data"] += annoVal + "\t"
                 if res["ref_data"][sample]["ref_missing"]:
-                    res["tsv"]["reference_data"] += "Reference Genes without N0"
+                    res["tsv"][
+                        "reference_data"
+                    ] += "Reference Genes without N0"
                 res["tsv"]["reference_data"] += "\t"
                 res["tsv"]["reference_data"] += (
                     str(res["ref_data"][sample]["N0_num"]) + "\t"
@@ -12089,7 +12938,9 @@ class Experiment:
             if inclAnnotation:
                 for currAnno in sortedAnnoKeys:
                     res["tsv"]["relative_data"] += currAnno + "\t"
-            res["tsv"]["relative_data"] += "Target\tTarget Type\tRel. Expression\n"
+            res["tsv"][
+                "relative_data"
+            ] += "Target\tTarget Type\tRel. Expression\n"
             sortSam = sorted(res["rel_data"].keys())
             for sample in sortSam:
                 sortTar = sorted(res["rel_data"][sample].keys())
@@ -12110,7 +12961,9 @@ class Experiment:
                         res["tec_data"][sample][target]["target_type"] + "\t"
                     )
                     if res["rel_data"][sample][target]["ref_missing"]:
-                        res["tsv"]["relative_data"] += "Reference Genes without N0"
+                        res["tsv"][
+                            "relative_data"
+                        ] += "Reference Genes without N0"
                     res["tsv"]["relative_data"] += (
                         "{:.6f}".format(
                             res["rel_data"][sample][target]["rel_expression"]
@@ -12150,21 +13003,32 @@ class Experiment:
                                     continue
                                 annoData = ""
                                 if currAnno in overSelAnno:
-                                    if annoVal in overSelAnno[currAnno]["data"]:
-                                        annoData = overSelAnno[currAnno]["data"][
-                                            annoVal
-                                        ]
-                                res["tsv"]["annotation_data"] += annoData + "\t"
+                                    if (
+                                        annoVal
+                                        in overSelAnno[currAnno]["data"]
+                                    ):
+                                        annoData = overSelAnno[currAnno][
+                                            "data"
+                                        ][annoVal]
+                                res["tsv"]["annotation_data"] += (
+                                    annoData + "\t"
+                                )
                         res["tsv"]["annotation_data"] += target + "\t"
                         res["tsv"]["annotation_data"] += (
-                            "{:.6f}".format(res["anno_data"][target][annoVal]["mean"])
+                            "{:.6f}".format(
+                                res["anno_data"][target][annoVal]["mean"]
+                            )
                             + "\t"
                         )
                         res["tsv"]["annotation_data"] += (
-                            "{:.6f}".format(res["anno_data"][target][annoVal]["sem"])
+                            "{:.6f}".format(
+                                res["anno_data"][target][annoVal]["sem"]
+                            )
                             + "\t"
                         )
-                        for indivVal in res["anno_data"][target][annoVal]["raw_vals"]:
+                        for indivVal in res["anno_data"][target][annoVal][
+                            "raw_vals"
+                        ]:
                             res["tsv"]["annotation_data"] += (
                                 "{:.6f}".format(indivVal) + ";"
                             )
@@ -12182,11 +13046,13 @@ class Experiment:
                         res["anno_stats"][target]["stat name"] + "\t"
                     )
                     res["tsv"]["statistics_data"] += (
-                        "{:.6f}".format(res["anno_stats"][target]["stat val"]) + "\t"
+                        "{:.6f}".format(res["anno_stats"][target]["stat val"])
+                        + "\t"
                     )
                     res["tsv"]["statistics_data"] += "p-value\t"
                     res["tsv"]["statistics_data"] += (
-                        "{:.6f}".format(res["anno_stats"][target]["p val"]) + "\n"
+                        "{:.6f}".format(res["anno_stats"][target]["p val"])
+                        + "\n"
                     )
 
                 res["tsv"]["statistics_multi_comp"] = ""
@@ -12194,22 +13060,29 @@ class Experiment:
                     if res["anno_stats"][target]["multi comparison"] != "":
                         res["tsv"]["statistics_multi_comp"] += target + "\n"
                         for row in range(
-                            0, len(res["anno_stats"][target]["multi comparison"])
+                            0,
+                            len(res["anno_stats"][target]["multi comparison"]),
                         ):
                             for col in range(
                                 0,
-                                len(res["anno_stats"][target]["multi comparison"][row]),
+                                len(
+                                    res["anno_stats"][target][
+                                        "multi comparison"
+                                    ][row]
+                                ),
                             ):
                                 res["tsv"]["statistics_multi_comp"] += (
                                     str(
-                                        res["anno_stats"][target]["multi comparison"][
-                                            row
-                                        ][col]
+                                        res["anno_stats"][target][
+                                            "multi comparison"
+                                        ][row][col]
                                     )
                                     + "\t"
                                 )
                             res["tsv"]["statistics_multi_comp"] = re.sub(
-                                r"\t$", "\n", res["tsv"]["statistics_multi_comp"]
+                                r"\t$",
+                                "\n",
+                                res["tsv"]["statistics_multi_comp"],
                             )
                         res["tsv"]["statistics_multi_comp"] += "\n\n"
 
@@ -12217,7 +13090,7 @@ class Experiment:
 
 
 class Run:
-    """RDML-Python library
+    """RDML-Python library.
 
     The run element used to read and edit one run.
 
@@ -12272,7 +13145,10 @@ class Run:
                 return forId.attrib["id"]
             else:
                 return None
-        if key in ["dataCollectionSoftware_name", "dataCollectionSoftware_version"]:
+        if key in [
+            "dataCollectionSoftware_name",
+            "dataCollectionSoftware_version",
+        ]:
             ele = _get_first_child(self._node, "dataCollectionSoftware")
             if ele is None:
                 return None
@@ -12280,7 +13156,9 @@ class Run:
                 return _get_first_child_text(ele, "name")
             if key == "dataCollectionSoftware_version":
                 return _get_first_child_text(ele, "version")
-            raise RdmlError("Run dataCollectionSoftware programming read error.")
+            raise RdmlError(
+                "Run dataCollectionSoftware programming read error."
+            )
         if key in [
             "pcrFormat_rows",
             "pcrFormat_columns",
@@ -12329,7 +13207,11 @@ class Run:
         if key in ["pcrFormat_rowLabel", "pcrFormat_columnLabel"]:
             if value not in ["ABC", "123", "A1a1"]:
                 raise RdmlError(
-                    "Unknown or unsupported run " + key + ' value "' + value + '".'
+                    "Unknown or unsupported run "
+                    + key
+                    + ' value "'
+                    + value
+                    + '".'
                 )
 
         if key == "id":
@@ -12356,7 +13238,10 @@ class Run:
             else:
                 self._node.remove(forId)
             return
-        if key in ["dataCollectionSoftware_name", "dataCollectionSoftware_version"]:
+        if key in [
+            "dataCollectionSoftware_name",
+            "dataCollectionSoftware_version",
+        ]:
             ele = _get_or_create_subelement(
                 self._node, "dataCollectionSoftware", self.xmlkeys()
             )
@@ -12376,7 +13261,9 @@ class Run:
             "pcrFormat_rowLabel",
             "pcrFormat_columnLabel",
         ]:
-            ele = _get_or_create_subelement(self._node, "pcrFormat", self.xmlkeys())
+            ele = _get_or_create_subelement(
+                self._node, "pcrFormat", self.xmlkeys()
+            )
             if key == "pcrFormat_rows":
                 _change_subelement(
                     ele,
@@ -12498,7 +13385,9 @@ class Run:
         for id, inc in good_ids.items():
             if inc is True:
                 if id not in old:
-                    new_node = _create_new_element(self._node, "documentation", id)
+                    new_node = _create_new_element(
+                        self._node, "documentation", id
+                    )
                     place = _get_tag_pos(
                         self._node, "documentation", self.xmlkeys(), 999999999
                     )
@@ -12525,7 +13414,9 @@ class Run:
             No return value, changes self. Function may raise RdmlError if required.
         """
 
-        pos = _get_tag_pos(self._node, "documentation", self.xmlkeys(), newposition)
+        pos = _get_tag_pos(
+            self._node, "documentation", self.xmlkeys(), newposition
+        )
         ele = _get_first_child_by_pos_or_id(
             self._node, "documentation", None, oldposition
         )
@@ -12561,7 +13452,9 @@ class Run:
         for id, inc in good_ids.items():
             if inc is True:
                 if id not in old:
-                    new_node = _create_new_element(self._node, "experimenter", id)
+                    new_node = _create_new_element(
+                        self._node, "experimenter", id
+                    )
                     place = _get_tag_pos(
                         self._node, "experimenter", self.xmlkeys(), 999999999
                     )
@@ -12588,7 +13481,9 @@ class Run:
             No return value, changes self. Function may raise RdmlError if required.
         """
 
-        pos = _get_tag_pos(self._node, "experimenter", self.xmlkeys(), newposition)
+        pos = _get_tag_pos(
+            self._node, "experimenter", self.xmlkeys(), newposition
+        )
         ele = _get_first_child_by_pos_or_id(
             self._node, "experimenter", None, oldposition
         )
@@ -12618,7 +13513,9 @@ class Run:
             _add_first_child_to_dic(elem, qdic, True, "version")
             if len(qdic.keys()) != 0:
                 data["dataCollectionSoftware"] = qdic
-        _add_first_child_to_dic(self._node, data, True, "backgroundDeterminationMethod")
+        _add_first_child_to_dic(
+            self._node, data, True, "backgroundDeterminationMethod"
+        )
         _add_first_child_to_dic(self._node, data, True, "cqDetectionMethod")
         forId = _get_first_child(self._node, "thermalCyclingConditions")
         if forId is not None:
@@ -12637,7 +13534,8 @@ class Run:
         return data
 
     def export_table(self, dMode):
-        """Returns a tab seperated table file with the react fluorescence data in RDES format.
+        """Returns a tab seperated table file with the react fluorescence data
+        in RDES format.
 
         Args:
             self: The class self parameter.
@@ -12700,10 +13598,16 @@ class Run:
         for react in reacts:
             reactId = react.get("id")
             pWell = str(reactId)
-            if int(self["pcrFormat_columns"]) != 1 and int(self["pcrFormat_rows"]) != 1:
-                pIdNumber = (int(reactId) - 1) % int(self["pcrFormat_columns"]) + 1
+            if (
+                int(self["pcrFormat_columns"]) != 1
+                and int(self["pcrFormat_rows"]) != 1
+            ):
+                pIdNumber = (int(reactId) - 1) % int(
+                    self["pcrFormat_columns"]
+                ) + 1
                 pIdLetter = chr(
-                    ord("A") + int((int(reactId) - 1) / int(self["pcrFormat_columns"]))
+                    ord("A")
+                    + int((int(reactId) - 1) / int(self["pcrFormat_columns"]))
                 )
                 pWell = pIdLetter + str(pIdNumber)
             dataSample = pWell + "\t"
@@ -12728,7 +13632,9 @@ class Run:
                 react_sample_type = "No Sample Type"
                 if react_sample in transSamTar:
                     if react_target in transSamTar[react_sample]:
-                        react_sample_type = transSamTar[react_sample][react_target]
+                        react_sample_type = transSamTar[react_sample][
+                            react_target
+                        ]
                 dataLine = dataSample + react_sample_type
                 dataLine += (
                     "\t"
@@ -12769,7 +13675,8 @@ class Run:
         return data
 
     def import_table(self, rootEl, filename, dMode):
-        """Imports data from a tab seperated table file with react fluorescence data.
+        """Imports data from a tab seperated table file with react fluorescence
+        data.
 
         Args:
             self: The class self parameter.
@@ -12854,7 +13761,16 @@ class Run:
                 continue
 
             # Undefined are set to "unkn" and "toi"
-            if sLin[2] not in ["unkn", "ntc", "nac", "std", "ntp", "nrt", "pos", "opt"]:
+            if sLin[2] not in [
+                "unkn",
+                "ntc",
+                "nac",
+                "std",
+                "ntp",
+                "nrt",
+                "pos",
+                "opt",
+            ]:
                 sLin[2] = "unkn"
             if sLin[4] not in ["ref", "toi"]:
                 sLin[4] = "toi"
@@ -12864,7 +13780,13 @@ class Run:
                 samEl = rootEl.get_sample(byid=sLin[1])
                 samEl.new_type(sLin[2])
                 samTypeLookup[sLin[1]] = sLin[2]
-                ret += 'Created sample "' + sLin[1] + '" with type "' + sLin[2] + '"\n'
+                ret += (
+                    'Created sample "'
+                    + sLin[1]
+                    + '" with type "'
+                    + sLin[2]
+                    + '"\n'
+                )
                 if sLin[1] not in transSamTar:
                     transSamTar[sLin[1]] = {}
             if sLin[2] != samTypeLookup[sLin[1]]:
@@ -12914,10 +13836,14 @@ class Run:
                 wellPos = str(newId)
             if re.search(r"\D\d+\D\d+", sLin[0]):
                 old_left = re.sub(r"\D\d+$", "", sLin[0])
-                old_left_letter = ord(re.sub(r"\d", "", old_left).upper()) - ord("A")
+                old_left_letter = ord(
+                    re.sub(r"\d", "", old_left).upper()
+                ) - ord("A")
                 old_left_nr = int(re.sub(r"\D", "", old_left)) - 1
                 old_right = re.sub(r"^\D\d+", "", sLin[0])
-                old_right_letter = ord(re.sub(r"\d", "", old_right).upper()) - ord("A")
+                old_right_letter = ord(
+                    re.sub(r"\d", "", old_right).upper()
+                ) - ord("A")
                 old_right_nr = int(re.sub(r"\D", "", old_right))
                 newId = (
                     old_left_nr * 8
@@ -12947,7 +13873,9 @@ class Run:
                     break
             if react is None:
                 new_node = et.Element("react", id=wellPos)
-                place = _get_tag_pos(self._node, "react", self.xmlkeys(), 9999999)
+                place = _get_tag_pos(
+                    self._node, "react", self.xmlkeys(), 9999999
+                )
                 self._node.insert(place, new_node)
                 react = new_node
                 new_node = et.Element("sample", id=sLin[1])
@@ -12984,13 +13912,19 @@ class Run:
             else:
                 if (
                     (dMode == "melt" and dataVersion == "1.3")
-                    or (dMode == "amp" and dataVersion == "1.3" and keyFor7 == "N0")
+                    or (
+                        dMode == "amp"
+                        and dataVersion == "1.3"
+                        and keyFor7 == "N0"
+                    )
                     or (dMode == "amp" and keyFor7 == "cq")
                 ):
                     if present7 is None:
                         new_node = et.Element(keyFor7)
                         new_node.text = cont7
-                        place = _get_tag_pos(data, keyFor7, _getXMLDataType(), 9999999)
+                        place = _get_tag_pos(
+                            data, keyFor7, _getXMLDataType(), 9999999
+                        )
                         data.insert(place, new_node)
                     else:
                         present7.text = cont7
@@ -13079,20 +14013,29 @@ class Run:
                                     new_sub = et.Element("tmp")
                                     new_sub.text = head[colCount]
                                     place = _get_tag_pos(
-                                        new_node, "tmp", ["tmp", "fluor"], 9999999
+                                        new_node,
+                                        "tmp",
+                                        ["tmp", "fluor"],
+                                        9999999,
                                     )
                                     new_node.insert(place, new_sub)
                                     new_sub = et.Element("fluor")
                                     new_sub.text = col
                                     place = _get_tag_pos(
-                                        new_node, "fluor", ["tmp", "fluor"], 9999999
+                                        new_node,
+                                        "fluor",
+                                        ["tmp", "fluor"],
+                                        9999999,
                                     )
                                     new_node.insert(place, new_sub)
                         colCount += 1
         return ret
 
-    def import_digital_data(self, rootEl, fileformat, filename, filelist, ignoreCh=""):
-        """Imports data from a tab seperated table file with digital PCR overview data.
+    def import_digital_data(
+        self, rootEl, fileformat, filename, filelist, ignoreCh=""
+    ):
+        """Imports data from a tab seperated table file with digital PCR
+        overview data.
 
         Args:
             self: The class self parameter.
@@ -13322,7 +14265,9 @@ class Run:
                             if posTarget > -1:
                                 crTarName = sLin[posTarget]
                             else:
-                                crTarName = " Target " + str(countUpTarget) + " Ch1"
+                                crTarName = (
+                                    " Target " + str(countUpTarget) + " Ch1"
+                                )
                                 countUpTarget += 1
                             chan = "Ch1"
                             if crTarName not in tarTypeLookup:
@@ -13348,7 +14293,9 @@ class Run:
                             if posTargetCh2 > -1:
                                 crTarName = sLin[posTargetCh2]
                             else:
-                                crTarName = " Target " + str(countUpTarget) + " Ch2"
+                                crTarName = (
+                                    " Target " + str(countUpTarget) + " Ch2"
+                                )
                                 countUpTarget += 1
                             chan = "Ch2"
                             if crTarName not in tarTypeLookup:
@@ -13374,7 +14321,9 @@ class Run:
                             if posTargetCh3 > -1:
                                 crTarName = sLin[posTargetCh3]
                             else:
-                                crTarName = " Target " + str(countUpTarget) + " Ch3"
+                                crTarName = (
+                                    " Target " + str(countUpTarget) + " Ch3"
+                                )
                                 countUpTarget += 1
                             chan = "Ch3"
                             if crTarName not in tarTypeLookup:
@@ -13403,7 +14352,8 @@ class Run:
                             posDyeName = sLin[posDye]
                         if (
                             posTarget > -1
-                            and int(re.sub(r"\D", "", posDyeName)) not in ignoreList
+                            and int(re.sub(r"\D", "", posDyeName))
+                            not in ignoreList
                         ):
                             if sLin[posTarget] not in tarTypeLookup:
                                 if posDyeName not in dyeLookup:
@@ -13413,10 +14363,14 @@ class Run:
                                 posTargetTypeName = "toi"
                                 if posTargetType != -1:
                                     posTargetTypeName = sLin[posTargetType]
-                                rootEl.new_target(sLin[posTarget], posTargetTypeName)
+                                rootEl.new_target(
+                                    sLin[posTarget], posTargetTypeName
+                                )
                                 elem = rootEl.get_target(byid=sLin[posTarget])
                                 elem["dyeId"] = posDyeName
-                                tarTypeLookup[sLin[posTarget]] = posTargetTypeName
+                                tarTypeLookup[
+                                    sLin[posTarget]
+                                ] = posTargetTypeName
                                 ret += (
                                     "Created "
                                     + sLin[posTarget]
@@ -13429,7 +14383,9 @@ class Run:
 
                             if wellPos.upper() not in headerLookup:
                                 headerLookup[wellPos.upper()] = {}
-                            headerLookup[wellPos.upper()][posDyeName] = sLin[posTarget]
+                            headerLookup[wellPos.upper()][posDyeName] = sLin[
+                                posTarget
+                            ]
 
                     if posFilename != -1 and sLin[posFilename] != "":
                         fileNameSuggLookup[wellPos.upper()] = sLin[posFilename]
@@ -13441,9 +14397,13 @@ class Run:
                     # Get the position number if required
                     wellPosStore = wellPos
                     if re.search(r"\D\d+", wellPos):
-                        old_letter = ord(re.sub(r"\d", "", wellPos.upper())) - ord("A")
+                        old_letter = ord(
+                            re.sub(r"\d", "", wellPos.upper())
+                        ) - ord("A")
                         old_nr = int(re.sub(r"\D", "", wellPos))
-                        newId = old_nr + old_letter * int(self["pcrFormat_columns"])
+                        newId = old_nr + old_letter * int(
+                            self["pcrFormat_columns"]
+                        )
                         wellPos = str(newId)
 
                     exp = _get_all_children(self._node, "react")
@@ -13499,7 +14459,10 @@ class Run:
                         else:
                             new_node.text = "0.70"
                         place = _get_tag_pos(
-                            partit, "volume", ["volume", "endPtTable", "data"], 9999999
+                            partit,
+                            "volume",
+                            ["volume", "endPtTable", "data"],
+                            9999999,
                         )
                         partit.insert(place, new_node)
 
@@ -13553,22 +14516,30 @@ class Run:
                                 partit.insert(place, new_node)
                                 data = new_node
                                 new_node = et.Element("tar", id=stillaTarget)
-                                place = _get_tag_pos(data, "tar", partElemLS, 9999999)
+                                place = _get_tag_pos(
+                                    data, "tar", partElemLS, 9999999
+                                )
                                 data.insert(place, new_node)
 
                             new_node = et.Element("pos")
                             new_node.text = stillaPos
-                            place = _get_tag_pos(data, "pos", partElemLS, 9999999)
+                            place = _get_tag_pos(
+                                data, "pos", partElemLS, 9999999
+                            )
                             data.insert(place, new_node)
 
                             new_node = et.Element("neg")
                             new_node.text = stillaNeg
-                            place = _get_tag_pos(data, "neg", partElemLS, 9999999)
+                            place = _get_tag_pos(
+                                data, "neg", partElemLS, 9999999
+                            )
                             data.insert(place, new_node)
 
                             new_node = et.Element("conc")
                             new_node.text = stillaConc
-                            place = _get_tag_pos(data, "conc", partElemLS, 9999999)
+                            place = _get_tag_pos(
+                                data, "conc", partElemLS, 9999999
+                            )
                             data.insert(place, new_node)
                     else:
                         exp = _get_all_children(partit, "data")
@@ -13591,7 +14562,9 @@ class Run:
                             partit.insert(place, new_node)
                             data = new_node
                             new_node = et.Element("tar", id=sLin[posTarget])
-                            place = _get_tag_pos(data, "tar", partElemLS, 9999999)
+                            place = _get_tag_pos(
+                                data, "tar", partElemLS, 9999999
+                            )
                             data.insert(place, new_node)
 
                         new_node = et.Element("pos")
@@ -13607,13 +14580,17 @@ class Run:
                         if posUndefined != -1 and sLin[posUndefined] != "":
                             new_node = et.Element("undef")
                             new_node.text = sLin[posUndefined]
-                            place = _get_tag_pos(data, "neg", partElemLS, 9999999)
+                            place = _get_tag_pos(
+                                data, "neg", partElemLS, 9999999
+                            )
                             data.insert(place, new_node)
 
                         if posExcluded != -1 and sLin[posExcluded] != "":
                             new_node = et.Element("excl")
                             new_node.text = sLin[posExcluded]
-                            place = _get_tag_pos(data, "neg", partElemLS, 9999999)
+                            place = _get_tag_pos(
+                                data, "neg", partElemLS, 9999999
+                            )
                             data.insert(place, new_node)
 
                         if posCopConc != -1:
@@ -13624,10 +14601,14 @@ class Run:
                                 if fileformat == "RDML":
                                     new_node.text = sLin[posCopConc]
                                 elif fileformat == "Bio-Rad":
-                                    new_node.text = str(float(sLin[posCopConc]) / 20)
+                                    new_node.text = str(
+                                        float(sLin[posCopConc]) / 20
+                                    )
                                 else:
                                     new_node.text = sLin[posCopConc]
-                            place = _get_tag_pos(data, "conc", partElemLS, 9999999)
+                            place = _get_tag_pos(
+                                data, "conc", partElemLS, 9999999
+                            )
                             data.insert(place, new_node)
 
         # Read the raw data files
@@ -13718,7 +14699,9 @@ class Run:
                         + '"\n'
                     )
                 new_node = et.Element("react", id=wellPos)
-                place = _get_tag_pos(self._node, "react", self.xmlkeys(), 9999999)
+                place = _get_tag_pos(
+                    self._node, "react", self.xmlkeys(), 9999999
+                )
                 self._node.insert(place, new_node)
                 react = new_node
                 new_node = et.Element("sample", id=sampleName)
@@ -13728,14 +14711,19 @@ class Run:
             if partit is None:
                 new_node = et.Element("partitions")
                 place = _get_tag_pos(
-                    react, "partitions", ["sample", "data", "partitions"], 9999999
+                    react,
+                    "partitions",
+                    ["sample", "data", "partitions"],
+                    9999999,
                 )
                 react.insert(place, new_node)
                 partit = new_node
                 new_node = et.Element("volume")
                 if fileformat == "RDML":
                     new_node.text = "0.7"
-                    warnVolume = "No information on partition volume given, used 0.7."
+                    warnVolume = (
+                        "No information on partition volume given, used 0.7."
+                    )
                 elif fileformat == "Bio-Rad":
                     new_node.text = "0.85"
                 elif fileformat == "Stilla":
@@ -13754,7 +14742,9 @@ class Run:
                     partit, "endPtTable"
                 )
                 if finalFileName == "partitions/":
-                    finalFileName = propFileName + "_" + wellPos + "_" + well + ".tsv"
+                    finalFileName = (
+                        propFileName + "_" + wellPos + "_" + well + ".tsv"
+                    )
                     triesCount = 0
                     if finalFileName.lower() in uniqueFileNames:
                         while triesCount < 100:
@@ -13780,7 +14770,9 @@ class Run:
                 if fileformat == "RDML":
                     wellLines = list(csv.reader(wellfile, delimiter="\t"))
                     wellFileContent = wellfile.read()
-                    _writeFileInRDML(self._rdmlFilename, finalFileName, wellFileContent)
+                    _writeFileInRDML(
+                        self._rdmlFilename, finalFileName, wellFileContent
+                    )
 
                     delElem = _get_first_child(partit, "endPtTable")
                     if delElem is not None:
@@ -13788,7 +14780,10 @@ class Run:
                     new_node = et.Element("endPtTable")
                     new_node.text = re.sub(r"^partitions/", "", finalFileName)
                     place = _get_tag_pos(
-                        partit, "endPtTable", ["volume", "endPtTable", "data"], 9999999
+                        partit,
+                        "endPtTable",
+                        ["volume", "endPtTable", "data"],
+                        9999999,
                     )
                     partit.insert(place, new_node)
 
@@ -13855,21 +14850,27 @@ class Run:
                                 partit.insert(place, new_node)
                                 data = new_node
                                 new_node = et.Element("tar", id=targetName)
-                                place = _get_tag_pos(data, "tar", partElemLS, 9999999)
+                                place = _get_tag_pos(
+                                    data, "tar", partElemLS, 9999999
+                                )
                                 data.insert(place, new_node)
                             delElem = _get_first_child(partit, "pos")
                             if delElem is not None:
                                 data.remove(delElem)
                             new_node = et.Element("pos")
                             new_node.text = str(cPos)
-                            place = _get_tag_pos(data, "pos", partElemLS, 9999999)
+                            place = _get_tag_pos(
+                                data, "pos", partElemLS, 9999999
+                            )
                             data.insert(place, new_node)
                             delElem = _get_first_child(partit, "neg")
                             if delElem is not None:
                                 data.remove(delElem)
                             new_node = et.Element("neg")
                             new_node.text = str(cNeg)
-                            place = _get_tag_pos(data, "pos", partElemLS, 9999999)
+                            place = _get_tag_pos(
+                                data, "pos", partElemLS, 9999999
+                            )
                             data.insert(place, new_node)
                             delElem = _get_first_child(partit, "undef")
                             if delElem is not None:
@@ -13877,7 +14878,9 @@ class Run:
                             if cExcl > 0:
                                 new_node = et.Element("undef")
                                 new_node.text = str(cUndef)
-                                place = _get_tag_pos(data, "pos", partElemLS, 9999999)
+                                place = _get_tag_pos(
+                                    data, "pos", partElemLS, 9999999
+                                )
                                 data.insert(place, new_node)
                             delElem = _get_first_child(partit, "excl")
                             if delElem is not None:
@@ -13885,7 +14888,9 @@ class Run:
                             if cExcl > 0:
                                 new_node = et.Element("excl")
                                 new_node.text = str(cExcl)
-                                place = _get_tag_pos(data, "pos", partElemLS, 9999999)
+                                place = _get_tag_pos(
+                                    data, "pos", partElemLS, 9999999
+                                )
                                 data.insert(place, new_node)
 
                 elif fileformat == "Bio-Rad":
@@ -13962,7 +14967,9 @@ class Run:
                                 if (dyeCount == 1 and keepCh1) or (
                                     dyeCount == 2 and keepCh2
                                 ):
-                                    header += targetName + "\t" + targetName + "\t"
+                                    header += (
+                                        targetName + "\t" + targetName + "\t"
+                                    )
                             outTabFile += re.sub(r"\t$", "\n", header)
 
                     if keepCh1 or keepCh2:
@@ -13972,7 +14979,8 @@ class Run:
                             if (
                                 keepCh1
                                 and forId is not None
-                                and forId.attrib["id"] == headerLookup[well]["Ch1"]
+                                and forId.attrib["id"]
+                                == headerLookup[well]["Ch1"]
                             ):
                                 dataCh1 = node
                                 ch1Pos = _get_first_child_text(dataCh1, "pos")
@@ -13981,7 +14989,8 @@ class Run:
                             if (
                                 keepCh2
                                 and forId is not None
-                                and forId.attrib["id"] == headerLookup[well]["Ch2"]
+                                and forId.attrib["id"]
+                                == headerLookup[well]["Ch2"]
                             ):
                                 dataCh2 = node
                                 ch2Pos = _get_first_child_text(dataCh2, "pos")
@@ -13997,8 +15006,12 @@ class Run:
                             )
                             partit.insert(place, new_node)
                             dataCh1 = new_node
-                            new_node = et.Element("tar", id=headerLookup[well]["Ch1"])
-                            place = _get_tag_pos(dataCh1, "tar", partElemLS, 9999999)
+                            new_node = et.Element(
+                                "tar", id=headerLookup[well]["Ch1"]
+                            )
+                            place = _get_tag_pos(
+                                dataCh1, "tar", partElemLS, 9999999
+                            )
                             dataCh1.insert(place, new_node)
                             ch1Pos = ""
                             ch1Neg = ""
@@ -14013,8 +15026,12 @@ class Run:
                             )
                             partit.insert(place, new_node)
                             dataCh2 = new_node
-                            new_node = et.Element("tar", id=headerLookup[well]["Ch2"])
-                            place = _get_tag_pos(dataCh2, "tar", partElemLS, 9999999)
+                            new_node = et.Element(
+                                "tar", id=headerLookup[well]["Ch2"]
+                            )
+                            place = _get_tag_pos(
+                                dataCh2, "tar", partElemLS, 9999999
+                            )
                             dataCh2.insert(place, new_node)
                             ch2Pos = ""
                             ch2Neg = ""
@@ -14126,9 +15143,13 @@ class Run:
                                         outTabFile += "n\n"
                                 else:
                                     outTabFile += "\n"
-                        _writeFileInRDML(self._rdmlFilename, finalFileName, outTabFile)
+                        _writeFileInRDML(
+                            self._rdmlFilename, finalFileName, outTabFile
+                        )
                         new_node = et.Element("endPtTable")
-                        new_node.text = re.sub(r"^partitions/", "", finalFileName)
+                        new_node.text = re.sub(
+                            r"^partitions/", "", finalFileName
+                        )
                         place = _get_tag_pos(
                             partit,
                             "endPtTable",
@@ -14241,7 +15262,8 @@ class Run:
                             if (
                                 keepCh1
                                 and forId is not None
-                                and forId.attrib["id"] == headerLookup[well]["Ch1"]
+                                and forId.attrib["id"]
+                                == headerLookup[well]["Ch1"]
                             ):
                                 dataCh1 = node
                                 ch1Pos = _get_first_child_text(dataCh1, "pos")
@@ -14250,7 +15272,8 @@ class Run:
                             if (
                                 keepCh2
                                 and forId is not None
-                                and forId.attrib["id"] == headerLookup[well]["Ch2"]
+                                and forId.attrib["id"]
+                                == headerLookup[well]["Ch2"]
                             ):
                                 dataCh2 = node
                                 ch2Pos = _get_first_child_text(dataCh2, "pos")
@@ -14259,7 +15282,8 @@ class Run:
                             if (
                                 keepCh3
                                 and forId is not None
-                                and forId.attrib["id"] == headerLookup[well]["Ch3"]
+                                and forId.attrib["id"]
+                                == headerLookup[well]["Ch3"]
                             ):
                                 dataCh3 = node
                                 ch3Pos = _get_first_child_text(dataCh3, "pos")
@@ -14275,8 +15299,12 @@ class Run:
                             )
                             partit.insert(place, new_node)
                             dataCh1 = new_node
-                            new_node = et.Element("tar", id=headerLookup[well]["Ch1"])
-                            place = _get_tag_pos(dataCh1, "tar", partElemLS, 9999999)
+                            new_node = et.Element(
+                                "tar", id=headerLookup[well]["Ch1"]
+                            )
+                            place = _get_tag_pos(
+                                dataCh1, "tar", partElemLS, 9999999
+                            )
                             dataCh1.insert(place, new_node)
                             ch1Pos = ""
                             ch1Neg = ""
@@ -14291,8 +15319,12 @@ class Run:
                             )
                             partit.insert(place, new_node)
                             dataCh2 = new_node
-                            new_node = et.Element("tar", id=headerLookup[well]["Ch2"])
-                            place = _get_tag_pos(dataCh2, "tar", partElemLS, 9999999)
+                            new_node = et.Element(
+                                "tar", id=headerLookup[well]["Ch2"]
+                            )
+                            place = _get_tag_pos(
+                                dataCh2, "tar", partElemLS, 9999999
+                            )
                             dataCh2.insert(place, new_node)
                             ch2Pos = ""
                             ch2Neg = ""
@@ -14307,13 +15339,21 @@ class Run:
                             )
                             partit.insert(place, new_node)
                             dataCh3 = new_node
-                            new_node = et.Element("tar", id=headerLookup[well]["Ch3"])
-                            place = _get_tag_pos(dataCh3, "tar", partElemLS, 9999999)
+                            new_node = et.Element(
+                                "tar", id=headerLookup[well]["Ch3"]
+                            )
+                            place = _get_tag_pos(
+                                dataCh3, "tar", partElemLS, 9999999
+                            )
                             dataCh3.insert(place, new_node)
                             ch3Pos = ""
                             ch3Neg = ""
                             ch3sum = 2
-                        if dataCh1 is None and dataCh2 is None and dataCh3 is None:
+                        if (
+                            dataCh1 is None
+                            and dataCh2 is None
+                            and dataCh3 is None
+                        ):
                             continue
                         if ch1sum < 1 and ch2sum < 1 and ch3sum < 1:
                             continue
@@ -14463,9 +15503,13 @@ class Run:
                                         outTabFile += "n\n"
                                 else:
                                     outTabFile += "\n"
-                        _writeFileInRDML(self._rdmlFilename, finalFileName, outTabFile)
+                        _writeFileInRDML(
+                            self._rdmlFilename, finalFileName, outTabFile
+                        )
                         new_node = et.Element("endPtTable")
-                        new_node.text = re.sub(r"^partitions/", "", finalFileName)
+                        new_node.text = re.sub(
+                            r"^partitions/", "", finalFileName
+                        )
                         place = _get_tag_pos(
                             partit,
                             "endPtTable",
@@ -14515,7 +15559,9 @@ class Run:
             pPos = react.attrib["id"]
             posId = int(react.attrib["id"])
             pIdNumber = posId % int(self["pcrFormat_columns"])
-            pIdLetter = chr(ord("A") + int(posId / int(self["pcrFormat_columns"])))
+            pIdLetter = chr(
+                ord("A") + int(posId / int(self["pcrFormat_columns"]))
+            )
             pWell = pIdLetter + str(pIdNumber)
             pSample = ""
             pFileName = ""
@@ -14602,7 +15648,9 @@ class Run:
         if partit is None:
             return ""
 
-        finalFileName = "partitions/" + _get_first_child_text(partit, "endPtTable")
+        finalFileName = "partitions/" + _get_first_child_text(
+            partit, "endPtTable"
+        )
         if finalFileName == "partitions/":
             return ""
 
@@ -14662,7 +15710,9 @@ class Run:
                         in_react["tar"] = forId.attrib["id"]
                 _add_first_child_to_dic(react_data, in_react, True, "cq")
                 _add_first_child_to_dic(react_data, in_react, True, "N0")
-                _add_first_child_to_dic(react_data, in_react, True, "ampEffMet")
+                _add_first_child_to_dic(
+                    react_data, in_react, True, "ampEffMet"
+                )
                 _add_first_child_to_dic(react_data, in_react, True, "ampEff")
                 _add_first_child_to_dic(react_data, in_react, True, "ampEffSE")
                 _add_first_child_to_dic(react_data, in_react, True, "corrF")
@@ -14731,16 +15781,14 @@ class Run:
                                                     except ValueError:
                                                         pass
                                                     else:
-                                                        if math.isfinite(calcCq):
+                                                        if math.isfinite(
+                                                            calcCq
+                                                        ):
                                                             if calcCq > 0.0:
-                                                                finalCq = (
-                                                                    calcCq
-                                                                    - math.log10(
-                                                                        calcCorr
-                                                                    )
-                                                                    / math.log10(
-                                                                        calcEff
-                                                                    )
+                                                                finalCq = calcCq - math.log10(
+                                                                    calcCorr
+                                                                ) / math.log10(
+                                                                    calcEff
                                                                 )
                                                                 in_react[
                                                                     "corrCq"
@@ -14765,8 +15813,12 @@ class Run:
                 _add_first_child_to_dic(react_data, in_react, True, "note")
                 _add_first_child_to_dic(react_data, in_react, True, "endPt")
                 _add_first_child_to_dic(react_data, in_react, True, "bgFluor")
-                _add_first_child_to_dic(react_data, in_react, True, "bgFluorSlp")
-                _add_first_child_to_dic(react_data, in_react, True, "quantFluor")
+                _add_first_child_to_dic(
+                    react_data, in_react, True, "bgFluorSlp"
+                )
+                _add_first_child_to_dic(
+                    react_data, in_react, True, "quantFluor"
+                )
                 if curves:
                     adps = _get_all_children(react_data, "adp")
                     adps_json = []
@@ -14776,7 +15828,11 @@ class Run:
                         adp_cyc_max = max(adp_cyc_max, float(cyc))
                         adp_fluor_min = min(adp_fluor_min, float(fluor))
                         adp_fluor_max = max(adp_fluor_max, float(fluor))
-                        in_adp = [cyc, fluor, _get_first_child_text(adp, "tmp")]
+                        in_adp = [
+                            cyc,
+                            fluor,
+                            _get_first_child_text(adp, "tmp"),
+                        ]
                         adps_json.append(in_adp)
                     in_react["adps"] = adps_json
                     mdps = _get_all_children(react_data, "mdp")
@@ -14808,13 +15864,27 @@ class Run:
                     if forId is not None:
                         if forId.attrib["id"] != "":
                             in_partit["tar"] = forId.attrib["id"]
-                    _add_first_child_to_dic(partit_data, in_partit, True, "excluded")
-                    _add_first_child_to_dic(partit_data, in_partit, True, "note")
-                    _add_first_child_to_dic(partit_data, in_partit, False, "pos")
-                    _add_first_child_to_dic(partit_data, in_partit, False, "neg")
-                    _add_first_child_to_dic(partit_data, in_partit, True, "undef")
-                    _add_first_child_to_dic(partit_data, in_partit, True, "excl")
-                    _add_first_child_to_dic(partit_data, in_partit, True, "conc")
+                    _add_first_child_to_dic(
+                        partit_data, in_partit, True, "excluded"
+                    )
+                    _add_first_child_to_dic(
+                        partit_data, in_partit, True, "note"
+                    )
+                    _add_first_child_to_dic(
+                        partit_data, in_partit, False, "pos"
+                    )
+                    _add_first_child_to_dic(
+                        partit_data, in_partit, False, "neg"
+                    )
+                    _add_first_child_to_dic(
+                        partit_data, in_partit, True, "undef"
+                    )
+                    _add_first_child_to_dic(
+                        partit_data, in_partit, True, "excl"
+                    )
+                    _add_first_child_to_dic(
+                        partit_data, in_partit, True, "conc"
+                    )
                     partit_datas_json.append(in_partit)
                 in_partitions["datas"] = partit_datas_json
                 react_json["partitions"] = in_partitions
@@ -14991,7 +16061,9 @@ class Run:
                         if forId.attrib["id"] == vTar:
                             oldData = ""
                             if vAppend:
-                                oldData = _get_first_child_text(react_data, "excl")
+                                oldData = _get_first_child_text(
+                                    react_data, "excl"
+                                )
                             _change_subelement(
                                 react_data,
                                 "excl",
@@ -15116,7 +16188,9 @@ class Run:
                             if ver == "1.3":
                                 oldData = ""
                                 if vAppend:
-                                    oldData = _get_first_child_text(react_data, "note")
+                                    oldData = _get_first_child_text(
+                                        react_data, "note"
+                                    )
                                 _change_subelement(
                                     react_data,
                                     "note",
@@ -15179,7 +16253,9 @@ class Run:
                             if forId.attrib["id"] == vTar:
                                 oldData = ""
                                 if vAppend:
-                                    oldData = _get_first_child_text(part_data, "note")
+                                    oldData = _get_first_child_text(
+                                        part_data, "note"
+                                    )
                                 _change_subelement(
                                     part_data,
                                     "note",
@@ -15218,7 +16294,8 @@ class Run:
         excludeEfficiency="outlier",
         excludeInstableBaseline=True,
     ):
-        """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
+        """Performs LinRegPCR on the run. Modifies the cq values and returns a
+        json with additional data.
 
         Args:
             self: The class self parameter.
@@ -15269,7 +16346,10 @@ class Run:
                 for react in allData["reacts"]:
                     if react["id"] == res["baselineCorrectedData"][row][0]:
                         for data in react["datas"]:
-                            if data["tar"] == res["baselineCorrectedData"][row][3]:
+                            if (
+                                data["tar"]
+                                == res["baselineCorrectedData"][row][3]
+                            ):
                                 data["bass"] = list(bass_json)
             allData["bas_cyc_max"] = bas_cyc_max
             allData["bas_fluor_min"] = bas_fluor_min
@@ -15280,13 +16360,13 @@ class Run:
             resList = sorted(res["resultsList"], key=_sort_list_int)
             for rRow in range(0, len(resList)):
                 for rCol in range(0, len(resList[rRow])):
-                    if isinstance(resList[rRow][rCol], np.float64) and not np.isfinite(
-                        resList[rRow][rCol]
-                    ):
+                    if isinstance(
+                        resList[rRow][rCol], np.float64
+                    ) and not np.isfinite(resList[rRow][rCol]):
                         resList[rRow][rCol] = ""
-                    if isinstance(resList[rRow][rCol], float) and not math.isfinite(
-                        resList[rRow][rCol]
-                    ):
+                    if isinstance(
+                        resList[rRow][rCol], float
+                    ) and not math.isfinite(resList[rRow][rCol]):
                         resList[rRow][rCol] = ""
             allData["LinRegPCR_Result_Table"] = json.dumps(
                 [header] + resList, cls=NpEncoder
@@ -15314,7 +16394,8 @@ class Run:
         timeRun=False,
         verbose=False,
     ):
-        """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
+        """Performs LinRegPCR on the run. Modifies the cq values and returns a
+        json with additional data.
 
         Args:
             self: The class self parameter.
@@ -15511,7 +16592,9 @@ class Run:
         rawFluor[rawFluor <= 0.00000001] = np.nan
 
         # Create a matrix with the cycle for each rawFluor value
-        vecCycles = np.tile(np.arange(1, (spFl[1] + 1), dtype=np.int64), (spFl[0], 1))
+        vecCycles = np.tile(
+            np.arange(1, (spFl[1] + 1), dtype=np.int64), (spFl[0], 1)
+        )
 
         # Initialization of the vecNoAmplification vector
         vecExcludedByUser = np.zeros(spFl[0], dtype=np.bool_)
@@ -15524,7 +16607,8 @@ class Run:
             posId = react.get("id")
             pIdNumber = (int(posId) - 1) % int(self["pcrFormat_columns"]) + 1
             pIdLetter = chr(
-                ord("A") + int((int(posId) - 1) / int(self["pcrFormat_columns"]))
+                ord("A")
+                + int((int(posId) - 1) / int(self["pcrFormat_columns"]))
             )
             pWell = pIdLetter + str(pIdNumber)
             sample = ""
@@ -15619,7 +16703,12 @@ class Run:
                 )  # Must match header length
                 adps = _get_all_children(react_data, "adp")
                 for adp in adps:
-                    cyc = int(math.ceil(float(_get_first_child_text(adp, "cyc")))) - 1
+                    cyc = (
+                        int(
+                            math.ceil(float(_get_first_child_text(adp, "cyc")))
+                        )
+                        - 1
+                    )
                     fluor = _get_first_child_text(adp, "fluor")
                     if commaConv:
                         noDot = fluor.replace(".", "")
@@ -15654,7 +16743,9 @@ class Run:
                 if forId.attrib["id"] != "":
                     lu_dyeId = forId.attrib["id"]
             if lu_dyeId == "" or lu_dyeId not in dicLU_dyes:
-                dicLU_targets[lu_target.attrib["id"]] = "non-saturating DNA binding dye"
+                dicLU_targets[
+                    lu_target.attrib["id"]
+                ] = "non-saturating DNA binding dye"
             if lu_target.attrib["id"] != "":
                 dicLU_targets[lu_target.attrib["id"]] = dicLU_dyes[lu_dyeId]
 
@@ -15675,12 +16766,16 @@ class Run:
             if res[oRow][rar_sample] != "":
                 if res[oRow][rar_sample] != "":
                     if res[oRow][rar_tar] != "":
-                        res[oRow][rar_sample_type] = transSamTar[res[oRow][rar_sample]][
-                            res[oRow][rar_tar]
-                        ]
-                res[oRow][rar_sample_nucleotide] = dicLU_samNucl[res[oRow][rar_sample]]
+                        res[oRow][rar_sample_type] = transSamTar[
+                            res[oRow][rar_sample]
+                        ][res[oRow][rar_tar]]
+                res[oRow][rar_sample_nucleotide] = dicLU_samNucl[
+                    res[oRow][rar_sample]
+                ]
             if res[oRow][rar_tar] != "":
-                res[oRow][rar_tar_chemistry] = dicLU_targets[res[oRow][rar_tar]]
+                res[oRow][rar_tar_chemistry] = dicLU_targets[
+                    res[oRow][rar_tar]
+                ]
 
         if saveRaw:
             rawTable = [
@@ -15885,7 +16980,9 @@ class Run:
                     posCount += 1
 
             # There must be an increase in fluorescence after the amplification.
-            if ((minCorFluor[oRow, posEight] + minCorFluor[oRow, posNine]) / 2) / (
+            if (
+                (minCorFluor[oRow, posEight] + minCorFluor[oRow, posNine]) / 2
+            ) / (
                 (minCorFluor[oRow, posZero] + minCorFluor[oRow, posOne]) / 2
             ) < 2.0:
                 if (
@@ -15935,7 +17032,9 @@ class Run:
                 vecNoPlateau[oRow] = True
 
         # Set an initial window already for WOL calculation
-        lastCycMeanMax = _lrp_lastCycMeanMax(minCorFluor, vecSkipSample, vecNoPlateau)
+        lastCycMeanMax = _lrp_lastCycMeanMax(
+            minCorFluor, vecSkipSample, vecNoPlateau
+        )
         upWin[0] = 0.1 * lastCycMeanMax
         lowWin[0] = 0.1 * lastCycMeanMax / 16.0
 
@@ -16002,7 +17101,9 @@ class Run:
 
                     if slopeLow >= slopeHigh:
                         vecBackground[oRow] *= 0.99
-                        baseCorFluor[oRow] = rawFluor[oRow] - vecBackground[oRow]
+                        baseCorFluor[oRow] = (
+                            rawFluor[oRow] - vecBackground[oRow]
+                        )
                         baseCorFluor[np.isnan(baseCorFluor)] = 0
                         baseCorFluor[baseCorFluor <= 0.00000001] = np.nan
 
@@ -16087,7 +17188,9 @@ class Run:
                     vecBaselineError[oRow] = False
 
                 # 3: skip sample when fluor[stopCyc]/fluor[startCyc] < 20
-                loglinlen = 20.0  # RelaxLogLinLengthRG in Pascal may choose 10.0
+                loglinlen = (
+                    20.0  # RelaxLogLinLengthRG in Pascal may choose 10.0
+                )
                 if (
                     baseCorFluor[oRow, stopCyc[oRow] - 1]
                     / baseCorFluor[oRow, startCycFix[oRow] - 1]
@@ -16112,7 +17215,13 @@ class Run:
                 pcrEff[oRow] = np.nan
 
             # Negative controls should not be part of the mean calculations
-            if res[oRow][rar_sample_type] in ["ntc", "nac", "ntp", "nrt", "opt"]:
+            if res[oRow][rar_sample_type] in [
+                "ntc",
+                "nac",
+                "ntp",
+                "nrt",
+                "opt",
+            ]:
                 vecSkipSample[oRow] = True
 
         vecBackground = vecDefBackgrd
@@ -16129,12 +17238,16 @@ class Run:
             if vecShortLogLin[oRow] and not vecNoAmplification[oRow]:
                 if not vecBaselineError[oRow]:
                     # Recalculate it separately from the good values
-                    checkFluor[oRow] = rawFluor[oRow] - 1.05 * vecBackground[oRow]
+                    checkFluor[oRow] = (
+                        rawFluor[oRow] - 1.05 * vecBackground[oRow]
+                    )
                     checkFluor[np.isnan(checkFluor)] = 0.0
                     checkFluor[checkFluor <= 0.00000001] = np.nan
 
                     with warnings.catch_warnings():
-                        warnings.simplefilter("ignore", category=RuntimeWarning)
+                        warnings.simplefilter(
+                            "ignore", category=RuntimeWarning
+                        )
                         maxFlour = np.nanmax(checkFluor)
 
                     if np.isnan(maxFlour):
@@ -16145,7 +17258,9 @@ class Run:
                             _unused,
                             _unused2,
                             _unused3,
-                        ) = _lrp_paramInWindow(baseCorFluor, oRow, upWin[0], lowWin[0])
+                        ) = _lrp_paramInWindow(
+                            baseCorFluor, oRow, upWin[0], lowWin[0]
+                        )
                     else:
                         (
                             tempMeanX,
@@ -16154,16 +17269,20 @@ class Run:
                             _unused,
                             _unused2,
                             _unused3,
-                        ) = _lrp_paramInWindow(checkFluor, oRow, upWin[0], lowWin[0])
+                        ) = _lrp_paramInWindow(
+                            checkFluor, oRow, upWin[0], lowWin[0]
+                        )
 
                     if tempPcrEff > 1.000000000001:
-                        CtShiftUp = tempMeanX + (checkBaseline - tempMeanY) / np.log10(
-                            tempPcrEff
-                        )
+                        CtShiftUp = tempMeanX + (
+                            checkBaseline - tempMeanY
+                        ) / np.log10(tempPcrEff)
                     else:
                         CtShiftUp = 0.0
 
-                    checkFluor[oRow] = rawFluor[oRow] - 0.95 * vecBackground[oRow]
+                    checkFluor[oRow] = (
+                        rawFluor[oRow] - 0.95 * vecBackground[oRow]
+                    )
                     checkFluor[np.isnan(checkFluor)] = 0
                     checkFluor[checkFluor <= 0.00000001] = np.nan
                     (
@@ -16173,7 +17292,9 @@ class Run:
                         _unused,
                         _unused2,
                         _unused3,
-                    ) = _lrp_paramInWindow(checkFluor, oRow, upWin[0], lowWin[0])
+                    ) = _lrp_paramInWindow(
+                        checkFluor, oRow, upWin[0], lowWin[0]
+                    )
 
                     if tempPcrEff > 1.000000000001:
                         CtShiftDown = tempMeanX + (
@@ -16191,7 +17312,9 @@ class Run:
 
         vecSkipSample[vecExcludedByUser] = True
         # Update the window
-        lastCycMeanMax = _lrp_lastCycMeanMax(baseCorFluor, vecSkipSample, vecNoPlateau)
+        lastCycMeanMax = _lrp_lastCycMeanMax(
+            baseCorFluor, vecSkipSample, vecNoPlateau
+        )
         upWin[0] = 0.1 * lastCycMeanMax
         lowWin[0] = 0.1 * lastCycMeanMax / 16.0
         maxFluorTotal = np.nanmax(baseCorFluor)
@@ -16242,7 +17365,12 @@ class Run:
                 vecBaselineError,
             )
             checkMeanEff, _unused = _lrp_meanPcrEff(
-                None, [], tempPcrEff, vecSkipSample, vecNoPlateau, vecShortLogLin
+                None,
+                [],
+                tempPcrEff,
+                vecSkipSample,
+                vecNoPlateau,
+                vecShortLogLin,
             )
             if checkMeanEff < 1.001:
                 skipGroup = True
@@ -16250,7 +17378,13 @@ class Run:
         if not skipGroup:
             foldWidth = np.log10(np.power(checkMeanEff, pointsInWoL))
             upWin, lowWin = _lrp_setLogWin(
-                None, maxLim, foldWidth, upWin, lowWin, maxFluorTotal, minFluorTotal
+                None,
+                maxLim,
+                foldWidth,
+                upWin,
+                lowWin,
+                maxFluorTotal,
+                minFluorTotal,
             )
             # compare to Log(1.01*lowLim) to compensate for
             # the truncation in cuplimedit with + 0.0043
@@ -16269,7 +17403,8 @@ class Run:
                         minStartCyc -= 1
                     minStopCyc = stopWinCyc - 1
                     while (
-                        np.isnan(baseCorFluor[oRow, minStopCyc - 1]) and minStopCyc > 2
+                        np.isnan(baseCorFluor[oRow, minStopCyc - 1])
+                        and minStopCyc > 2
                     ):
                         minStopCyc -= 1
 
@@ -16280,9 +17415,9 @@ class Run:
                     startStep = np.log10(
                         baseCorFluor[oRow, startWinCyc - 1]
                     ) - np.log10(minStartFlour)
-                    stopStep = np.log10(baseCorFluor[oRow, stopWinCyc - 1]) - np.log10(
-                        baseCorFluor[oRow, minStopCyc - 1]
-                    )
+                    stopStep = np.log10(
+                        baseCorFluor[oRow, stopWinCyc - 1]
+                    ) - np.log10(baseCorFluor[oRow, minStopCyc - 1])
                     if np.log10(minStartFlour) > lowLim and not (
                         (
                             minStartFlour < baseCorFluor[oRow, startWinCyc - 1]
@@ -16316,7 +17451,9 @@ class Run:
                     ]
                 )
                 for oCol in range(0, spFl[1]):
-                    rawTable[oRow + 1].append(float(baselineCorrectedData[oRow, oCol]))
+                    rawTable[oRow + 1].append(
+                        float(baselineCorrectedData[oRow, oCol])
+                    )
             finalData["baselineCorrectedData"] = rawTable
 
         if timeRun:
@@ -16457,23 +17594,30 @@ class Run:
                 "DNA-zyme probe",
             ]:
                 critCqOffset = 0.0
-                if res[oRow][rar_tar_chemistry] == "labelled reverse primer" and res[
+                if res[oRow][
+                    rar_tar_chemistry
+                ] == "labelled reverse primer" and res[oRow][
+                    rar_sample_nucleotide
+                ] in [
+                    "DNA",
+                    "genomic DNA",
+                ]:
+                    critCqOffset = 1.0
+                if res[oRow][rar_tar_chemistry] == "DNA-zyme probe" and res[
                     oRow
                 ][rar_sample_nucleotide] in ["DNA", "genomic DNA"]:
-                    critCqOffset = 1.0
-                if res[oRow][rar_tar_chemistry] == "DNA-zyme probe" and res[oRow][
-                    rar_sample_nucleotide
-                ] in ["DNA", "genomic DNA"]:
                     critCqOffset = 4.0
-                if res[oRow][rar_tar_chemistry] == "DNA-zyme probe" and res[oRow][
-                    rar_sample_nucleotide
-                ] in ["cDNA", "RNA"]:
+                if res[oRow][rar_tar_chemistry] == "DNA-zyme probe" and res[
+                    oRow
+                ][rar_sample_nucleotide] in ["cDNA", "RNA"]:
                     critCqOffset = 6.0
                 if (
                     not np.isnan(pcrEff[oRow])
                     and pcrEff[oRow] > 1.0001
                     and threshold[vecTarget[oRow]] > 0.0001
-                    and not (vecNoAmplification[oRow] or vecBaselineError[oRow])
+                    and not (
+                        vecNoAmplification[oRow] or vecBaselineError[oRow]
+                    )
                 ):
                     effIndex = int(np.trunc(10 * pcrEff[oRow] + 1 - 10))
                     if effIndex < 0:
@@ -16559,7 +17703,9 @@ class Run:
             pcreff_Skip_Plat_Mean = pcreff_Skip_Plat.copy()
             pcreff_Skip_Plat_Mean[vecEffOutlier_Skip_Plat_Mean] = np.nan
 
-            vecEffOutlier_Skip_Out[_lrp_removeOutlier(pcreff_Skip, vecNoPlateau)] = True
+            vecEffOutlier_Skip_Out[
+                _lrp_removeOutlier(pcreff_Skip, vecNoPlateau)
+            ] = True
             vecEffOutlier_Skip_Plat_Out[
                 _lrp_removeOutlier(pcreff_Skip_Plat, vecNoPlateau)
             ] = True
@@ -16612,7 +17758,9 @@ class Run:
                         not np.isnan(pcrEff[oRow])
                         and pcrEff[oRow] > 1.0001
                         and threshold[tar] > 0.0001
-                        and not (vecNoAmplification[oRow] or vecBaselineError[oRow])
+                        and not (
+                            vecNoAmplification[oRow] or vecBaselineError[oRow]
+                        )
                     ):
                         if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
                             cqCorrection = -1.0 + np.log10(
@@ -16636,7 +17784,10 @@ class Run:
                             not np.isnan(meanEff_Skip[oRow])
                             and meanEff_Skip[oRow] > 1.001
                         ):
-                            if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
+                            if (
+                                res[oRow][rar_tar_chemistry]
+                                == "DNA-zyme probe"
+                            ):
                                 cqCorrection = -1.0 + np.log10(
                                     1 / (1 - (1 / meanEff_Skip[oRow]))
                                 ) / np.log10(meanEff_Skip[oRow])
@@ -16651,7 +17802,10 @@ class Run:
                             not np.isnan(meanEff_Skip_Plat[oRow])
                             and meanEff_Skip_Plat[oRow] > 1.001
                         ):
-                            if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
+                            if (
+                                res[oRow][rar_tar_chemistry]
+                                == "DNA-zyme probe"
+                            ):
                                 cqCorrection = -1.0 + np.log10(
                                     1 / (1 - (1 / meanEff_Skip_Plat[oRow]))
                                 ) / np.log10(meanEff_Skip_Plat[oRow])
@@ -16666,7 +17820,10 @@ class Run:
                             not np.isnan(meanEff_Skip_Mean[oRow])
                             and meanEff_Skip_Mean[oRow] > 1.001
                         ):
-                            if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
+                            if (
+                                res[oRow][rar_tar_chemistry]
+                                == "DNA-zyme probe"
+                            ):
                                 cqCorrection = -1.0 + np.log10(
                                     1 / (1 - (1 / meanEff_Skip_Mean[oRow]))
                                 ) / np.log10(meanEff_Skip_Mean[oRow])
@@ -16681,9 +17838,13 @@ class Run:
                             not np.isnan(meanEff_Skip_Plat_Mean[oRow])
                             and meanEff_Skip_Plat_Mean[oRow] > 1.001
                         ):
-                            if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
+                            if (
+                                res[oRow][rar_tar_chemistry]
+                                == "DNA-zyme probe"
+                            ):
                                 cqCorrection = -1.0 + np.log10(
-                                    1 / (1 - (1 / meanEff_Skip_Plat_Mean[oRow]))
+                                    1
+                                    / (1 - (1 / meanEff_Skip_Plat_Mean[oRow]))
                                 ) / np.log10(meanEff_Skip_Plat_Mean[oRow])
                             meanCq_Skip_Plat_Mean[oRow] = (
                                 indMeanX[oRow]
@@ -16696,7 +17857,10 @@ class Run:
                             not np.isnan(meanEff_Skip_Out[oRow])
                             and meanEff_Skip_Out[oRow] > 1.001
                         ):
-                            if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
+                            if (
+                                res[oRow][rar_tar_chemistry]
+                                == "DNA-zyme probe"
+                            ):
                                 cqCorrection = -1.0 + np.log10(
                                     1 / (1 - (1 / meanEff_Skip_Out[oRow]))
                                 ) / np.log10(meanEff_Skip_Out[oRow])
@@ -16711,7 +17875,10 @@ class Run:
                             not np.isnan(meanEff_Skip_Plat_Out[oRow])
                             and meanEff_Skip_Plat_Out[oRow] > 1.001
                         ):
-                            if res[oRow][rar_tar_chemistry] == "DNA-zyme probe":
+                            if (
+                                res[oRow][rar_tar_chemistry]
+                                == "DNA-zyme probe"
+                            ):
                                 cqCorrection = -1.0 + np.log10(
                                     1 / (1 - (1 / meanEff_Skip_Plat_Out[oRow]))
                                 ) / np.log10(meanEff_Skip_Plat_Out[oRow])
@@ -16739,7 +17906,9 @@ class Run:
                             not np.isnan(meanEff_Skip_Plat[oRow])
                             and meanEff_Skip_Plat[oRow] > 1.001
                         ):
-                            meanNnull_Skip_Plat[oRow] = threshold[0] / np.power(
+                            meanNnull_Skip_Plat[oRow] = threshold[
+                                0
+                            ] / np.power(
                                 meanEff_Skip_Plat[oRow], meanCq_Skip_Plat[oRow]
                             )
 
@@ -16747,7 +17916,9 @@ class Run:
                             not np.isnan(meanEff_Skip_Mean[oRow])
                             and meanEff_Skip_Mean[oRow] > 1.001
                         ):
-                            meanNnull_Skip_Mean[oRow] = threshold[0] / np.power(
+                            meanNnull_Skip_Mean[oRow] = threshold[
+                                0
+                            ] / np.power(
                                 meanEff_Skip_Mean[oRow], meanCq_Skip_Mean[oRow]
                             )
 
@@ -16755,7 +17926,9 @@ class Run:
                             not np.isnan(meanEff_Skip_Plat_Mean[oRow])
                             and meanEff_Skip_Plat_Mean[oRow] > 1.001
                         ):
-                            meanNnull_Skip_Plat_Mean[oRow] = threshold[0] / np.power(
+                            meanNnull_Skip_Plat_Mean[oRow] = threshold[
+                                0
+                            ] / np.power(
                                 meanEff_Skip_Plat_Mean[oRow],
                                 meanCq_Skip_Plat_Mean[oRow],
                             )
@@ -16772,8 +17945,11 @@ class Run:
                             not np.isnan(meanEff_Skip_Plat_Out[oRow])
                             and meanEff_Skip_Plat_Out[oRow] > 1.001
                         ):
-                            meanNnull_Skip_Plat_Out[oRow] = threshold[0] / np.power(
-                                meanEff_Skip_Plat_Out[oRow], meanCq_Skip_Plat_Out[oRow]
+                            meanNnull_Skip_Plat_Out[oRow] = threshold[
+                                0
+                            ] / np.power(
+                                meanEff_Skip_Plat_Out[oRow],
+                                meanCq_Skip_Plat_Out[oRow],
                             )
 
                     if vecNoPlateau[oRow]:
@@ -16790,7 +17966,9 @@ class Run:
         # write out the results #
         #########################
         for rRow in range(0, len(res)):
-            res[rRow][rar_baseline] = vecBackground[rRow] - negShiftBaseline[rRow]
+            res[rRow][rar_baseline] = (
+                vecBackground[rRow] - negShiftBaseline[rRow]
+            )
             res[rRow][rar_lower_limit] = lowWin[vecTarget[rRow]]
             res[rRow][rar_upper_limit] = upWin[vecTarget[rRow]]
             res[rRow][rar_threshold_common] = threshold[0]
@@ -16819,9 +17997,13 @@ class Run:
             res[rRow][rar_stdEff_Skip_Mean] = stdEff_Skip_Mean[rRow]
             res[rRow][rar_meanN0_Skip_Mean] = meanNnull_Skip_Mean[rRow]
             res[rRow][rar_Cq_Skip_Mean] = meanCq_Skip_Mean[rRow]
-            res[rRow][rar_meanEff_Skip_Plat_Mean] = meanEff_Skip_Plat_Mean[rRow]
+            res[rRow][rar_meanEff_Skip_Plat_Mean] = meanEff_Skip_Plat_Mean[
+                rRow
+            ]
             res[rRow][rar_stdEff_Skip_Plat_Mean] = stdEff_Skip_Plat_Mean[rRow]
-            res[rRow][rar_meanN0_Skip_Plat_Mean] = meanNnull_Skip_Plat_Mean[rRow]
+            res[rRow][rar_meanN0_Skip_Plat_Mean] = meanNnull_Skip_Plat_Mean[
+                rRow
+            ]
             res[rRow][rar_Cq_Skip_Plat_Mean] = meanCq_Skip_Plat_Mean[rRow]
             res[rRow][rar_meanEff_Skip_Out] = meanEff_Skip_Out[rRow]
             res[rRow][rar_stdEff_Skip_Out] = stdEff_Skip_Out[rRow]
@@ -16838,11 +18020,13 @@ class Run:
             res[rRow][rar_plateau] = not vecNoPlateau[rRow]
             res[rRow][rar_noisy_sample] = vecNoisySample[rRow]
             res[rRow][rar_effOutlier_Skip_Mean] = vecEffOutlier_Skip_Mean[rRow]
-            res[rRow][rar_effOutlier_Skip_Plat_Mean] = vecEffOutlier_Skip_Plat_Mean[
-                rRow
-            ]
+            res[rRow][
+                rar_effOutlier_Skip_Plat_Mean
+            ] = vecEffOutlier_Skip_Plat_Mean[rRow]
             res[rRow][rar_effOutlier_Skip_Out] = vecEffOutlier_Skip_Out[rRow]
-            res[rRow][rar_effOutlier_Skip_Plat_Out] = vecEffOutlier_Skip_Plat_Out[rRow]
+            res[rRow][
+                rar_effOutlier_Skip_Plat_Out
+            ] = vecEffOutlier_Skip_Plat_Out[rRow]
             res[rRow][rar_shortLogLinPhase] = vecShortLogLin[rRow]
             res[rRow][rar_CqIsShifting] = vecCtIsShifting[rRow]
             res[rRow][rar_tooLowCqEff] = vecTooLowCqEff[rRow]
@@ -16918,7 +18102,9 @@ class Run:
                     noteVal += "Cq > 34;N0 unreliable;"
                 if res[rRow][rar_n_log] < 5:
                     noteVal += (
-                        "only " + str(res[rRow][rar_n_log]) + " values in log phase;"
+                        "only "
+                        + str(res[rRow][rar_n_log])
+                        + " values in log phase;"
                     )
                 if res[rRow][rar_indiv_PCR_eff] < 1.7:
                     noteVal += (
@@ -16932,12 +18118,18 @@ class Run:
                     else:
                         if excludeEfficiency == "outlier":
                             noteVal += "PCR efficiency outlier;"
-                        diffFromMean = res[rRow][rar_indiv_PCR_eff] - meanEffVal
+                        diffFromMean = (
+                            res[rRow][rar_indiv_PCR_eff] - meanEffVal
+                        )
                         if diffFromMean > 0.0:
-                            noteVal += "indiv PCR eff is higher than mean PCR eff by "
+                            noteVal += (
+                                "indiv PCR eff is higher than mean PCR eff by "
+                            )
                             noteVal += "{:.3f}".format(diffFromMean) + ";"
                         else:
-                            noteVal += "indiv PCR eff is lower than mean PCR eff by "
+                            noteVal += (
+                                "indiv PCR eff is lower than mean PCR eff by "
+                            )
                             noteVal += "{:.3f}".format(-1 * diffFromMean) + ";"
 
             if res[rRow][rar_sample_type] in ["unkn"]:
@@ -16960,7 +18152,9 @@ class Run:
                     noteVal += "Cq too high;"
                 if res[rRow][rar_n_log] < 5:
                     noteVal += (
-                        "only " + str(res[rRow][rar_n_log]) + " values in log phase;"
+                        "only "
+                        + str(res[rRow][rar_n_log])
+                        + " values in log phase;"
                     )
                 if res[rRow][rar_indiv_PCR_eff] < 1.7:
                     noteVal += (
@@ -16974,12 +18168,18 @@ class Run:
                     else:
                         if excludeEfficiency == "outlier":
                             noteVal += "PCR efficiency outlier;"
-                        diffFromMean = res[rRow][rar_indiv_PCR_eff] - meanEffVal
+                        diffFromMean = (
+                            res[rRow][rar_indiv_PCR_eff] - meanEffVal
+                        )
                         if diffFromMean > 0.0:
-                            noteVal += "indiv PCR eff is higher than mean PCR eff by "
+                            noteVal += (
+                                "indiv PCR eff is higher than mean PCR eff by "
+                            )
                             noteVal += "{:.3f}".format(diffFromMean) + ";"
                         else:
-                            noteVal += "indiv PCR eff is lower than mean PCR eff by "
+                            noteVal += (
+                                "indiv PCR eff is lower than mean PCR eff by "
+                            )
                             noteVal += "{:.3f}".format(-1 * diffFromMean) + ";"
 
             # Write back
@@ -16993,7 +18193,9 @@ class Run:
         ##############################
         if updateRDML is True:
             self["backgroundDeterminationMethod"] = "LinRegPCR, constant"
-            self["cqDetectionMethod"] = "automated threshold and baseline settings"
+            self[
+                "cqDetectionMethod"
+            ] = "automated threshold and baseline settings"
             dataXMLelements = _getXMLDataType()
             collectedTargetEff = {}
             collectedTargetErr = {}
@@ -17003,32 +18205,50 @@ class Run:
                     N0Val = np.NaN
                     meanEffVal = np.NaN
                     stdEffVal = np.NaN
-                    if excludeNoPlateau is False and excludeEfficiency == "include":
+                    if (
+                        excludeNoPlateau is False
+                        and excludeEfficiency == "include"
+                    ):
                         cqVal = meanCq_Skip[rRow]
                         N0Val = meanNnull_Skip[rRow]
                         meanEffVal = meanEff_Skip[rRow]
                         stdEffVal = stdEff_Skip[rRow]
-                    if excludeNoPlateau is True and excludeEfficiency == "include":
+                    if (
+                        excludeNoPlateau is True
+                        and excludeEfficiency == "include"
+                    ):
                         cqVal = meanCq_Skip_Plat[rRow]
                         N0Val = meanNnull_Skip_Plat[rRow]
                         meanEffVal = meanEff_Skip_Plat[rRow]
                         stdEffVal = stdEff_Skip_Plat[rRow]
-                    if excludeNoPlateau is False and excludeEfficiency == "mean":
+                    if (
+                        excludeNoPlateau is False
+                        and excludeEfficiency == "mean"
+                    ):
                         cqVal = meanCq_Skip_Mean[rRow]
                         N0Val = meanNnull_Skip_Mean[rRow]
                         meanEffVal = meanEff_Skip_Mean[rRow]
                         stdEffVal = stdEff_Skip_Mean[rRow]
-                    if excludeNoPlateau is True and excludeEfficiency == "mean":
+                    if (
+                        excludeNoPlateau is True
+                        and excludeEfficiency == "mean"
+                    ):
                         cqVal = meanCq_Skip_Plat_Mean[rRow]
                         N0Val = meanNnull_Skip_Plat_Mean[rRow]
                         meanEffVal = meanEff_Skip_Plat_Mean[rRow]
                         stdEffVal = stdEff_Skip_Plat_Mean[rRow]
-                    if excludeNoPlateau is False and excludeEfficiency == "outlier":
+                    if (
+                        excludeNoPlateau is False
+                        and excludeEfficiency == "outlier"
+                    ):
                         cqVal = meanCq_Skip_Out[rRow]
                         N0Val = meanNnull_Skip_Out[rRow]
                         meanEffVal = meanEff_Skip_Out[rRow]
                         stdEffVal = stdEff_Skip_Out[rRow]
-                    if excludeNoPlateau is True and excludeEfficiency == "outlier":
+                    if (
+                        excludeNoPlateau is True
+                        and excludeEfficiency == "outlier"
+                    ):
                         cqVal = meanCq_Skip_Plat_Out[rRow]
                         N0Val = meanNnull_Skip_Plat_Out[rRow]
                         meanEffVal = meanEff_Skip_Plat_Out[rRow]
@@ -17159,7 +18379,9 @@ class Run:
                         if dataVersion != "1.1":
                             if curTar in collectedTargetErr:
                                 eleEffSE = _get_or_create_subelement(
-                                    eleTar, "amplificationEfficiencySE", tarXMLKeys
+                                    eleTar,
+                                    "amplificationEfficiencySE",
+                                    tarXMLKeys,
                                 )
                                 eleEffSE.text = collectedTargetErr[curTar]
 
@@ -17215,7 +18437,9 @@ class Run:
                         rar_meanEff_Skip_Plat_Out,
                         rar_stdEff_Skip_Plat_Out,
                     ]:
-                        retCSV += "{0:0.6f}".format(float(res[rRow][rCol])) + "\t"
+                        retCSV += (
+                            "{0:0.6f}".format(float(res[rRow][rCol])) + "\t"
+                        )
                     elif rCol in [
                         rar_Cq_common,
                         rar_Cq_grp,
@@ -17226,7 +18450,9 @@ class Run:
                         rar_Cq_Skip_Out,
                         rar_Cq_Skip_Plat_Out,
                     ]:
-                        retCSV += "{0:0.4f}".format(float(res[rRow][rCol])) + "\t"
+                        retCSV += (
+                            "{0:0.4f}".format(float(res[rRow][rCol])) + "\t"
+                        )
                     elif rCol in [
                         rar_N0_indiv_eff,
                         rar_meanN0_Skip,
@@ -17236,7 +18462,9 @@ class Run:
                         rar_meanN0_Skip_Out,
                         rar_meanN0_Skip_Plat_Out,
                     ]:
-                        retCSV += "{0:0.6e}".format(float(res[rRow][rCol])) + "\t"
+                        retCSV += (
+                            "{0:0.6e}".format(float(res[rRow][rCol])) + "\t"
+                        )
                     else:
                         retCSV += str(res[rRow][rCol]) + "\t"
                 retCSV = re.sub(r"\t$", "\n", retCSV)
@@ -17265,7 +18493,8 @@ class Run:
         peakCutoff=5.0,
         updateRDML=False,
     ):
-        """Performs LinRegPCR on the run. Modifies the cq values and returns a json with additional data.
+        """Performs LinRegPCR on the run. Modifies the cq values and returns a
+        json with additional data.
 
         Args:
             self: The class self parameter.
@@ -17324,7 +18553,9 @@ class Run:
                 bas_fluor_max = 0.0
                 for row in range(1, len(res["derivative"]["smoothed"])):
                     bass_json = []
-                    for col in range(6, len(res["derivative"]["smoothed"][row])):
+                    for col in range(
+                        6, len(res["derivative"]["smoothed"][row])
+                    ):
                         tmp = res["derivative"]["smoothed"][0][col]
                         fluor = res["derivative"]["smoothed"][row][col]
                         if np.isfinite(fluor) and fluor > 0.0:
@@ -17336,9 +18567,15 @@ class Run:
                             bass_json.append(in_bas)
                     # Fixme do not loop over all, use sorted data and clever moving
                     for react in allData["reacts"]:
-                        if react["id"] == res["derivative"]["smoothed"][row][0]:
+                        if (
+                            react["id"]
+                            == res["derivative"]["smoothed"][row][0]
+                        ):
                             for data in react["datas"]:
-                                if data["tar"] == res["derivative"]["smoothed"][row][3]:
+                                if (
+                                    data["tar"]
+                                    == res["derivative"]["smoothed"][row][3]
+                                ):
                                     data["smo"] = list(bass_json)
                 allData["smo_temp_min"] = bas_temp_min
                 allData["smo_temp_max"] = bas_temp_max
@@ -17352,7 +18589,9 @@ class Run:
                 bas_fluor_max = 0.0
                 for row in range(1, len(res["derivative"]["normalized"])):
                     bass_json = []
-                    for col in range(6, len(res["derivative"]["normalized"][row])):
+                    for col in range(
+                        6, len(res["derivative"]["normalized"][row])
+                    ):
                         tmp = res["derivative"]["normalized"][0][col]
                         fluor = res["derivative"]["normalized"][row][col]
                         if np.isfinite(fluor) and fluor > 0.0:
@@ -17364,7 +18603,10 @@ class Run:
                             bass_json.append(in_bas)
                     # Fixme do not loop over all, use sorted data and clever moving
                     for react in allData["reacts"]:
-                        if react["id"] == res["derivative"]["normalized"][row][0]:
+                        if (
+                            react["id"]
+                            == res["derivative"]["normalized"][row][0]
+                        ):
                             for data in react["datas"]:
                                 if (
                                     data["tar"]
@@ -17383,7 +18625,9 @@ class Run:
                 bas_fluor_max = 0.0
                 for row in range(1, len(res["derivative"]["firstDerivative"])):
                     bass_json = []
-                    for col in range(6, len(res["derivative"]["firstDerivative"][row])):
+                    for col in range(
+                        6, len(res["derivative"]["firstDerivative"][row])
+                    ):
                         tmp = res["derivative"]["firstDerivative"][0][col]
                         fluor = res["derivative"]["firstDerivative"][row][col]
                         if np.isfinite(fluor) and fluor > 0.0:
@@ -17395,11 +18639,16 @@ class Run:
                             bass_json.append(in_bas)
                     # Fixme do not loop over all, use sorted data and clever moving
                     for react in allData["reacts"]:
-                        if react["id"] == res["derivative"]["firstDerivative"][row][0]:
+                        if (
+                            react["id"]
+                            == res["derivative"]["firstDerivative"][row][0]
+                        ):
                             for data in react["datas"]:
                                 if (
                                     data["tar"]
-                                    == res["derivative"]["firstDerivative"][row][3]
+                                    == res["derivative"]["firstDerivative"][
+                                        row
+                                    ][3]
                                 ):
                                     data["fdm"] = list(bass_json)
                 allData["fdm_temp_min"] = bas_temp_min
@@ -17411,15 +18660,17 @@ class Run:
             resList = res["resultsList"]
             for rRow in range(0, len(resList)):
                 for rCol in range(0, len(resList[rRow])):
-                    if isinstance(resList[rRow][rCol], np.float64) and not np.isfinite(
-                        resList[rRow][rCol]
-                    ):
+                    if isinstance(
+                        resList[rRow][rCol], np.float64
+                    ) and not np.isfinite(resList[rRow][rCol]):
                         resList[rRow][rCol] = ""
-                    if isinstance(resList[rRow][rCol], float) and not math.isfinite(
-                        resList[rRow][rCol]
-                    ):
+                    if isinstance(
+                        resList[rRow][rCol], float
+                    ) and not math.isfinite(resList[rRow][rCol]):
                         resList[rRow][rCol] = ""
-            allData["Meltcurve_Result_Table"] = json.dumps(resList, cls=NpEncoder)
+            allData["Meltcurve_Result_Table"] = json.dumps(
+                resList, cls=NpEncoder
+            )
 
         if "noRawData" in res:
             allData["error"] = res["noRawData"]
@@ -17449,7 +18700,8 @@ class Run:
         saveResultsCSV=False,
         verbose=False,
     ):
-        """Performs a melt curve analysis on the run. Modifies the melting temperature values and returns a json with additional data.
+        """Performs a melt curve analysis on the run. Modifies the melting
+        temperature values and returns a json with additional data.
 
         Args:
             self: The class self parameter.
@@ -17579,7 +18831,8 @@ class Run:
             posId = react.get("id")
             pIdNumber = (int(posId) - 1) % int(self["pcrFormat_columns"]) + 1
             pIdLetter = chr(
-                ord("A") + int((int(posId) - 1) / int(self["pcrFormat_columns"]))
+                ord("A")
+                + int((int(posId) - 1) / int(self["pcrFormat_columns"]))
             )
             pWell = pIdLetter + str(pIdNumber)
             sample = ""
@@ -17600,7 +18853,18 @@ class Run:
                 noteVal = _get_first_child_text(react_data, "note")
                 rdmlElemData.append(react_data)
                 res.append(
-                    [posId, pWell, sample, "", target, "", "", excl, noteVal, ""]
+                    [
+                        posId,
+                        pWell,
+                        sample,
+                        "",
+                        target,
+                        "",
+                        "",
+                        excl,
+                        noteVal,
+                        "",
+                    ]
                 )  # Must match header length
                 mdps = _get_all_children(react_data, "mdp")
                 for mdp in mdps:
@@ -17632,14 +18896,18 @@ class Run:
         dicLU_tarMelt = {}
         luTargets = _get_all_children(parRoot, "target")
         for lu_target in luTargets:
-            meltingTemperature = _get_first_child_text(lu_target, "meltingTemperature")
+            meltingTemperature = _get_first_child_text(
+                lu_target, "meltingTemperature"
+            )
             forId = _get_first_child(lu_target, "dyeId")
             lu_dyeId = ""
             if forId is not None:
                 if forId.attrib["id"] != "":
                     lu_dyeId = forId.attrib["id"]
             if lu_dyeId == "" or lu_dyeId not in dicLU_dyes:
-                dicLU_targets[lu_target.attrib["id"]] = "non-saturating DNA binding dye"
+                dicLU_targets[
+                    lu_target.attrib["id"]
+                ] = "non-saturating DNA binding dye"
             if lu_target.attrib["id"] != "":
                 dicLU_targets[lu_target.attrib["id"]] = dicLU_dyes[lu_dyeId]
                 dicLU_tarMelt[lu_target.attrib["id"]] = meltingTemperature
@@ -17648,12 +18916,16 @@ class Run:
         for oRow in range(0, spFl[0]):
             if res[oRow][rar_sample] != "":
                 if res[oRow][rar_tar] != "":
-                    res[oRow][rar_sample_type] = transSamTar[res[oRow][rar_sample]][
-                        res[oRow][rar_tar]
-                    ]
+                    res[oRow][rar_sample_type] = transSamTar[
+                        res[oRow][rar_sample]
+                    ][res[oRow][rar_tar]]
             if res[oRow][rar_tar] != "":
-                res[oRow][rar_tar_chemistry] = dicLU_targets[res[oRow][rar_tar]]
-                res[oRow][rar_exp_melt_temp] = dicLU_tarMelt[res[oRow][rar_tar]]
+                res[oRow][rar_tar_chemistry] = dicLU_targets[
+                    res[oRow][rar_tar]
+                ]
+                res[oRow][rar_exp_melt_temp] = dicLU_tarMelt[
+                    res[oRow][rar_tar]
+                ]
 
         if saveRaw:
             rawData = [
@@ -17735,7 +19007,9 @@ class Run:
 
         for rRow in range(0, spFl[0]):  # loop rRow for every reaction
             # calculate FDLow and FDHigh from mc[]
-            FDLow = -1 * (smoothFluor[rRow][posLowT] - smoothFluor[rRow][posLowT - 1])
+            FDLow = -1 * (
+                smoothFluor[rRow][posLowT] - smoothFluor[rRow][posLowT - 1]
+            )
             FDHigh = -1 * (
                 smoothFluor[rRow][posHighT] - smoothFluor[rRow][posHighT - 1]
             )
@@ -17747,25 +19021,27 @@ class Run:
                 FDHigh = 0.000001  # not same as FDLow = 0.00001
 
             # determine Aexp and Cexp
-            Aexp = (np.log(FDHigh) - np.log(FDLow)) / (expoHighTemp - expoLowTemp)
+            Aexp = (np.log(FDHigh) - np.log(FDLow)) / (
+                expoHighTemp - expoLowTemp
+            )
             Cexp = -1 * FDLow / Aexp
 
             # apply exponential base trend correction
             MaxMCCorr = 0.0
             MinMCCorr = 10000.0
             for rCol in range(0, spFl[1]):
-                normalMelting[rRow][rCol] = smoothFluor[rRow][rCol] - Cexp * np.exp(
-                    Aexp * (tempList[rCol] - expoLowTemp)
-                )
+                normalMelting[rRow][rCol] = smoothFluor[rRow][
+                    rCol
+                ] - Cexp * np.exp(Aexp * (tempList[rCol] - expoLowTemp))
                 if normalMelting[rRow][rCol] > MaxMCCorr:
                     MaxMCCorr = normalMelting[rRow][rCol]
                 if normalMelting[rRow][rCol] < MinMCCorr:
                     MinMCCorr = normalMelting[rRow][rCol]
 
             for rCol in range(0, spFl[1]):
-                normalMelting[rRow][rCol] = (normalMelting[rRow][rCol] - MinMCCorr) / (
-                    MaxMCCorr - MinMCCorr
-                )
+                normalMelting[rRow][rCol] = (
+                    normalMelting[rRow][rCol] - MinMCCorr
+                ) / (MaxMCCorr - MinMCCorr)
 
         if normMethod in ["bilinear", "combined"]:
             ##################################
@@ -17800,7 +19076,9 @@ class Run:
             MeanSlope = np.zeros(
                 (targetsCount, 3 * NtempsInRange + 1), dtype=np.float64
             )
-            SDSlope = np.zeros((targetsCount, 3 * NtempsInRange + 1), dtype=np.float64)
+            SDSlope = np.zeros(
+                (targetsCount, 3 * NtempsInRange + 1), dtype=np.float64
+            )
             IndexR = -1
             for k in range(startindex, startindex + 3 * NtempsInRange + 1):
                 startlowT = k - 1
@@ -17816,18 +19094,28 @@ class Run:
                     bilinNormal = smoothFluor.copy()
 
                 [slopelow, interceptlow] = _mca_linReg(
-                    np.tile(tempList, (spFl[0], 1)), bilinNormal, startlowT, stoplowT
+                    np.tile(tempList, (spFl[0], 1)),
+                    bilinNormal,
+                    startlowT,
+                    stoplowT,
                 )
                 [slopehigh, intercepthigh] = _mca_linReg(
-                    np.tile(tempList, (spFl[0], 1)), bilinNormal, starthighT, stophighT
+                    np.tile(tempList, (spFl[0], 1)),
+                    bilinNormal,
+                    starthighT,
+                    stophighT,
                 )
                 LowTline = (
-                    interceptlow[:, np.newaxis] + slopelow[:, np.newaxis] * tempList
+                    interceptlow[:, np.newaxis]
+                    + slopelow[:, np.newaxis] * tempList
                 )
                 HighTline = (
-                    intercepthigh[:, np.newaxis] + slopehigh[:, np.newaxis] * tempList
+                    intercepthigh[:, np.newaxis]
+                    + slopehigh[:, np.newaxis] * tempList
                 )
-                bilinNormal = (bilinNormal - HighTline) / (LowTline - HighTline)
+                bilinNormal = (bilinNormal - HighTline) / (
+                    LowTline - HighTline
+                )
                 [slopeNMC, interceptNMC] = _mca_linReg(
                     np.tile(tempList, (spFl[0], 1)),
                     bilinNormal,
@@ -17838,7 +19126,9 @@ class Run:
                 for j in range(0, spFl[0]):
                     nonSweep = True
                     for i in range(0, spFl[1] - 1):
-                        if np.abs(bilinNormal[j][i] - bilinNormal[j][i + 1]) > 0.1 and (
+                        if np.abs(
+                            bilinNormal[j][i] - bilinNormal[j][i + 1]
+                        ) > 0.1 and (
                             bilinNormal[j][i] > 1.0 > bilinNormal[j][i + 1]
                             or bilinNormal[j][i] < 1.0 < bilinNormal[j][i + 1]
                         ):
@@ -17873,7 +19163,9 @@ class Run:
                             MeanSlope[curTarNr][IndexR] = MeanSlope[curTarNr][
                                 IndexR - 1
                             ]
-                            SDSlope[curTarNr][IndexR] = SDSlope[curTarNr][IndexR - 1]
+                            SDSlope[curTarNr][IndexR] = SDSlope[curTarNr][
+                                IndexR - 1
+                            ]
 
             MinSlope = 10.0  # default set to 10.0
             IndexMin = 0
@@ -17885,12 +19177,16 @@ class Run:
                             MinSlope = SDSlope[curTarNr][k]
                             IndexMin = k
                     else:
-                        CritSlope = MeanSlope[curTarNr][k] + 2 * SDSlope[curTarNr][k]
+                        CritSlope = (
+                            MeanSlope[curTarNr][k] + 2 * SDSlope[curTarNr][k]
+                        )
                         if CritSlope < 0.0 and (0.0 - CritSlope) < MinSlope:
                             MinSlope = 0.0 - CritSlope
                             IndexMin = k
                 bilinLowStart[curTarNr] = tempList[startindex + IndexMin]
-                bilinLowStop[curTarNr] = tempList[startindex + IndexMin + NtempsInRange]
+                bilinLowStop[curTarNr] = tempList[
+                    startindex + IndexMin + NtempsInRange
+                ]
                 LowTm[curTarNr] = bilinLowStop[curTarNr]
 
             ###################################
@@ -17900,7 +19196,10 @@ class Run:
                 starttemp = bilinLowStart[curTarNr]
                 # determine index of low start temperature
                 startlowT = 0
-                while tempList[startlowT] < starttemp and startlowT < len(tempList) - 1:
+                while (
+                    tempList[startlowT] < starttemp
+                    and startlowT < len(tempList) - 1
+                ):
                     startlowT += 1
 
                 stoptemp = bilinLowStop[curTarNr]
@@ -17914,7 +19213,8 @@ class Run:
                 # determine indices of high start and stop temperature
                 startindex = 1
                 while (
-                    tempList[startindex] < starttemp and startindex < len(tempList) - 1
+                    tempList[startindex] < starttemp
+                    and startindex < len(tempList) - 1
                 ):
                     startindex += 1
 
@@ -17960,13 +19260,16 @@ class Run:
                         stophighT,
                     )
                     LowTline = (
-                        interceptlow[:, np.newaxis] + slopelow[:, np.newaxis] * tempList
+                        interceptlow[:, np.newaxis]
+                        + slopelow[:, np.newaxis] * tempList
                     )
                     HighTline = (
                         intercepthigh[:, np.newaxis]
                         + slopehigh[:, np.newaxis] * tempList
                     )
-                    bilinNormal = (bilinNormal - HighTline) / (LowTline - HighTline)
+                    bilinNormal = (bilinNormal - HighTline) / (
+                        LowTline - HighTline
+                    )
                     # [slopeNMC, interceptNMC] = _mca_linReg(np.tile(tempList, (spFl[0], 1)), bilinNormal,
                     #                                        startlowT + NtempsInRange, startlowT + 2 * NtempsInRange)
 
@@ -17977,8 +19280,12 @@ class Run:
                                 if np.abs(
                                     bilinNormal[j][i] - bilinNormal[j][i + 1]
                                 ) > 0.1 and (
-                                    bilinNormal[j][i] > 0.0 > bilinNormal[j][i + 1]
-                                    or bilinNormal[j][i] < 0.0 < bilinNormal[j][i + 1]
+                                    bilinNormal[j][i]
+                                    > 0.0
+                                    > bilinNormal[j][i + 1]
+                                    or bilinNormal[j][i]
+                                    < 0.0
+                                    < bilinNormal[j][i + 1]
                                 ):
                                     nonSweep = False
                             if nonSweep:
@@ -18031,7 +19338,10 @@ class Run:
                     startlowT += 1
                 # determine index of low stop temperature
                 stoplowT = len(tempList) - 1
-                while tempList[stoplowT] > bilinLowStop[curTarNr] and stoplowT > 0:
+                while (
+                    tempList[stoplowT] > bilinLowStop[curTarNr]
+                    and stoplowT > 0
+                ):
                     stoplowT -= 1
                 # determine indices of high start and stop temperature
                 starthighT = 1
@@ -18042,21 +19352,32 @@ class Run:
                     starthighT += 1
                 # determine indices of high start and stop temperature
                 stophighT = len(tempList) - 1
-                while tempList[stophighT] > bilinHighStop[curTarNr] and stophighT > 0:
+                while (
+                    tempList[stophighT] > bilinHighStop[curTarNr]
+                    and stophighT > 0
+                ):
                     stophighT -= 1
 
                 [slopelow, interceptlow] = _mca_linReg(
-                    np.tile(tempList, (spFl[0], 1)), bilinNormal, startlowT, stoplowT
+                    np.tile(tempList, (spFl[0], 1)),
+                    bilinNormal,
+                    startlowT,
+                    stoplowT,
                 )
                 [slopehigh, intercepthigh] = _mca_linReg(
-                    np.tile(tempList, (spFl[0], 1)), bilinNormal, starthighT, stophighT
+                    np.tile(tempList, (spFl[0], 1)),
+                    bilinNormal,
+                    starthighT,
+                    stophighT,
                 )
 
                 LowTline = (
-                    interceptlow[:, np.newaxis] + slopelow[:, np.newaxis] * tempList
+                    interceptlow[:, np.newaxis]
+                    + slopelow[:, np.newaxis] * tempList
                 )
                 HighTline = (
-                    intercepthigh[:, np.newaxis] + slopehigh[:, np.newaxis] * tempList
+                    intercepthigh[:, np.newaxis]
+                    + slopehigh[:, np.newaxis] * tempList
                 )
 
                 for j in range(0, spFl[0]):
@@ -18068,17 +19389,24 @@ class Run:
                             # avoid sweeps because LowTline and HighTline are about to cross
                             if i > stophighT:
                                 if (
-                                    abs(normalMelting[j][i] - normalMelting[j][i - 1])
+                                    abs(
+                                        normalMelting[j][i]
+                                        - normalMelting[j][i - 1]
+                                    )
                                     > 1.01 * normalMelting[j][i - 1]
                                 ):
-                                    normalMelting[j][i] = normalMelting[j][i - 1]
+                                    normalMelting[j][i] = normalMelting[j][
+                                        i - 1
+                                    ]
 
         # FindSweepsButtonClick ???
 
         # Derivate normalMelting
         tmp = (tempList + np.roll(tempList, 1)) / 2  # Shift to right
         rawFirstDerivativeTemp = tmp[1:]
-        tmp = np.roll(normalMelting, 1, axis=1) - normalMelting  # Shift to right
+        tmp = (
+            np.roll(normalMelting, 1, axis=1) - normalMelting
+        )  # Shift to right
         rawFirstDerivative = tmp[:, 1:]
 
         # Delete the first three columns
@@ -18086,7 +19414,9 @@ class Run:
         rawFirstDerivative = rawFirstDerivative[:, 3:]
 
         # Smooth of raw data
-        smoothFirstDerivative = _mca_smooth(rawFirstDerivativeTemp, rawFirstDerivative)
+        smoothFirstDerivative = _mca_smooth(
+            rawFirstDerivativeTemp, rawFirstDerivative
+        )
 
         # Derivate smoothFirstDerivative
         rawSecondDerivativeTemp = tempList[4:-2]
@@ -18252,13 +19582,15 @@ class Run:
                         sdValMin = smoothSecondDerivative[pos][sdPosMin]
                         while (
                             sdPosMax > 0
-                            and sdValMax < smoothSecondDerivative[pos][sdPosMax - 1]
+                            and sdValMax
+                            < smoothSecondDerivative[pos][sdPosMax - 1]
                         ):
                             sdPosMax -= 1
                             sdValMax = smoothSecondDerivative[pos][sdPosMax]
                         while (
                             sdPosMin < (len(rawSecondDerivativeTemp) - 2)
-                            and sdValMin > smoothSecondDerivative[pos][sdPosMin + 1]
+                            and sdValMin
+                            > smoothSecondDerivative[pos][sdPosMin + 1]
                         ):
                             sdPosMin += 1
                             sdValMin = smoothSecondDerivative[pos][sdPosMin]
@@ -18266,7 +19598,9 @@ class Run:
                         if sdPosMax > 0:  # All peaks have to go up first!
                             lowPeakTemp = rawSecondDerivativeTemp[sdPosMax]
 
-                            ndLowPeakPos = sdPosMax + 4  # is the precise same temp
+                            ndLowPeakPos = (
+                                sdPosMax + 4
+                            )  # is the precise same temp
                             if fluorSource == "normalised":
                                 lowFinFluor = normalMelting[pos][ndLowPeakPos]
                             else:
@@ -18276,7 +19610,9 @@ class Run:
                             if sdPosMin > (len(rawSecondDerivativeTemp) - 4):
                                 # assume symmetry when down side is missing
                                 peakTempWitdth = 2 * (peakTemp - lowPeakTemp)
-                                ndPeakPos = fdPos + 3  # The peak is between +3 and +4
+                                ndPeakPos = (
+                                    fdPos + 3
+                                )  # The peak is between +3 and +4
                                 if fluorSource == "normalised":
                                     medFinFluor = normalMelting[pos][ndPeakPos]
                                 else:
@@ -18292,17 +19628,26 @@ class Run:
                                     smoothFirstDerivative[pos][fdPos]
                                     < smoothFirstDerivative[pos][sdPosMax]
                                     or smoothFirstDerivative[pos][fdPos] < 0.0
-                                    or smoothFirstDerivative[pos][sdPosMax] < 0.0
+                                    or smoothFirstDerivative[pos][sdPosMax]
+                                    < 0.0
                                 ):
                                     validPeakSD = False
                             else:
-                                highPeakTemp = rawSecondDerivativeTemp[sdPosMin]
+                                highPeakTemp = rawSecondDerivativeTemp[
+                                    sdPosMin
+                                ]
                                 peakTempWitdth = highPeakTemp - lowPeakTemp
-                                ndHighPeakPos = sdPosMin + 4  # is the precise same temp
+                                ndHighPeakPos = (
+                                    sdPosMin + 4
+                                )  # is the precise same temp
                                 if fluorSource == "normalised":
-                                    highFinFluor = normalMelting[pos][ndHighPeakPos]
+                                    highFinFluor = normalMelting[pos][
+                                        ndHighPeakPos
+                                    ]
                                 else:
-                                    highFinFluor = smoothFluor[pos][ndHighPeakPos]
+                                    highFinFluor = smoothFluor[pos][
+                                        ndHighPeakPos
+                                    ]
                                 fluorDrop = lowFinFluor - highFinFluor
 
                                 # sdPosMax position is on FD between sdPosMax and sdPosMax + 1
@@ -18314,10 +19659,13 @@ class Run:
                                 else:
                                     lowH = (
                                         smoothFirstDerivative[pos][sdPosMax]
-                                        + smoothFirstDerivative[pos][sdPosMin + 1]
+                                        + smoothFirstDerivative[pos][
+                                            sdPosMin + 1
+                                        ]
                                     )
                                     deltaH = (
-                                        smoothFirstDerivative[pos][fdPos] - lowH / 2
+                                        smoothFirstDerivative[pos][fdPos]
+                                        - lowH / 2
                                     )
                                 if (
                                     smoothFirstDerivative[pos][fdPos]
@@ -18325,7 +19673,8 @@ class Run:
                                     or smoothFirstDerivative[pos][fdPos]
                                     < smoothFirstDerivative[pos][sdPosMin + 1]
                                     or smoothFirstDerivative[pos][fdPos] < 0.0
-                                    or smoothFirstDerivative[pos][sdPosMax] < 0.0
+                                    or smoothFirstDerivative[pos][sdPosMax]
+                                    < 0.0
                                 ):
                                     validPeakSD = False
 
@@ -18337,8 +19686,12 @@ class Run:
                             ):
                                 peakResTemp[pos].append(peakTemp)
                                 peakResWidth[pos].append(peakTempWitdth)
-                                peakResH[pos].append(smoothFirstDerivative[pos][fdPos])
-                                peakResSumH[pos] += smoothFirstDerivative[pos][fdPos]
+                                peakResH[pos].append(
+                                    smoothFirstDerivative[pos][fdPos]
+                                )
+                                peakResSumH[pos] += smoothFirstDerivative[pos][
+                                    fdPos
+                                ]
                                 peakResDeltaH[pos].append(deltaH)
                                 peakResSumDeltaH[pos] += deltaH
                                 peakResFluor[pos].append(fluorDrop)
@@ -18347,7 +19700,10 @@ class Run:
             # Set unwanted peaks below peakCutoff to -10.0
             for oRow in range(0, spFl[0]):
                 for oCol in range(0, len(peakResTemp[oRow])):
-                    if peakCutoff > peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow]:
+                    if (
+                        peakCutoff
+                        > peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow]
+                    ):
                         peakResTemp[oRow][oCol] = -10.0
 
             # Recalculate the sums
@@ -18417,7 +19773,9 @@ class Run:
                                         maxDeltaH = peakResDeltaH[oRow][oCol]
                                         truePeakFinPos[oRow] = oCol
                             if maxDeltaH > 0.0:
-                                checkedPeakTemp[oRow][truePeakFinPos[oRow]] = -10.0
+                                checkedPeakTemp[oRow][
+                                    truePeakFinPos[oRow]
+                                ] = -10.0
 
             artifactPeaks = [[]]
             orderPeaks = -1 * np.ones((spFl[0], 1), dtype=np.int64)
@@ -18461,15 +19819,22 @@ class Run:
                             if curTarNr == tarWinLookup[res[oRow][rar_tar]]:
                                 maxDeltaH = 0.0
                                 curGoodCol = -1
-                                for oCol in range(0, len(checkedPeakTemp[oRow])):
+                                for oCol in range(
+                                    0, len(checkedPeakTemp[oRow])
+                                ):
                                     if (
                                         curTemp - artifactPeakWidth
                                         < checkedPeakTemp[oRow][oCol]
                                         < curTemp + artifactPeakWidth
                                     ):
-                                        if peakResDeltaH[oRow][oCol] >= maxDeltaH:
+                                        if (
+                                            peakResDeltaH[oRow][oCol]
+                                            >= maxDeltaH
+                                        ):
                                             # Choose the peak with the biggest deltaH
-                                            maxDeltaH = peakResDeltaH[oRow][oCol]
+                                            maxDeltaH = peakResDeltaH[oRow][
+                                                oCol
+                                            ]
                                             curGoodCol = oCol
                                 if maxDeltaH > 0.0:
                                     foundPeaks = True
@@ -18477,7 +19842,10 @@ class Run:
                                     curDeltaHSum += maxDeltaH
                                     curPosList[oRow] = curGoodCol
 
-                        if curPeakInRange >= maxPeakInRange and curPeakInRange > 0.0:
+                        if (
+                            curPeakInRange >= maxPeakInRange
+                            and curPeakInRange > 0.0
+                        ):
                             if (
                                 curDeltaHSum > maxDeltaHSum
                                 or curPeakInRange > maxPeakInRange
@@ -18501,12 +19869,18 @@ class Run:
                     if foundPeaks and maxDeltaHSum > 0.0:
                         peakCount += 1  # On pos 0 is expected peak
                         if peakCount >= len(orderPeaks[0]):
-                            ttPeaks = -1 * np.ones((spFl[0], 1), dtype=np.int64)
-                            orderPeaks = np.concatenate((orderPeaks, ttPeaks), axis=1)
+                            ttPeaks = -1 * np.ones(
+                                (spFl[0], 1), dtype=np.int64
+                            )
+                            orderPeaks = np.concatenate(
+                                (orderPeaks, ttPeaks), axis=1
+                            )
 
                         usePos = int(goodPosCount / 2)
                         stillPeaks = True
-                        artifactPeaks[curTarNr].append(tempList[goodTempPos[usePos]])
+                        artifactPeaks[curTarNr].append(
+                            tempList[goodTempPos[usePos]]
+                        )
                         # Avoid duplicate temps
                         del availPos[availPos.index(goodTempPos[usePos])]
                         for oRow in range(0, spFl[0]):
@@ -18524,7 +19898,9 @@ class Run:
             #                   str(checkedPeakTemp[oRow][colPos]))
 
             # Calculate the dimensions
-            calcRows = 1 + (targetsCount - 1) + spFl[0]  # header, sum cols, data Cols
+            calcRows = (
+                1 + (targetsCount - 1) + spFl[0]
+            )  # header, sum cols, data Cols
             maxPeaks = 0
             for curTarNr in range(1, targetsCount):
                 peakCount = len(artifactPeaks[curTarNr])
@@ -18570,7 +19946,9 @@ class Run:
                 resTable[averageRow][4] = tarReverseLookup[curTarNr]
                 resTable[averageRow][5] = "--"
                 resTable[averageRow][6] = "--"
-                resTable[averageRow][7] = dicLU_tarMelt[tarReverseLookup[curTarNr]]
+                resTable[averageRow][7] = dicLU_tarMelt[
+                    tarReverseLookup[curTarNr]
+                ]
 
                 # Create the true peak columns
                 meanResTemp = 0.0
@@ -18588,8 +19966,12 @@ class Run:
                         ###################################
                         # calculate excl and note strings #
                         ###################################
-                        exclVal = _cleanErrorString(res[oRow][rar_excl], "melt")
-                        noteVal = _cleanErrorString(res[oRow][rar_note], "melt")
+                        exclVal = _cleanErrorString(
+                            res[oRow][rar_excl], "melt"
+                        )
+                        noteVal = _cleanErrorString(
+                            res[oRow][rar_note], "melt"
+                        )
                         finPeakCount = 0
 
                         for curPeak in peakResTemp[oRow]:
@@ -18598,14 +19980,13 @@ class Run:
 
                         if res[oRow][rar_exp_melt_temp] != "":
                             if truePeakFinPos[oRow] < 0.0:
-                                if res[oRow][rar_sample_type] in ["std", "pos"]:
-                                    exclVal += (
-                                        "no product with expected melting temperature;"
-                                    )
+                                if res[oRow][rar_sample_type] in [
+                                    "std",
+                                    "pos",
+                                ]:
+                                    exclVal += "no product with expected melting temperature;"
                                 if res[oRow][rar_sample_type] in ["unkn"]:
-                                    noteVal += (
-                                        "no product with expected melting temperature;"
-                                    )
+                                    noteVal += "no product with expected melting temperature;"
                                 if finPeakCount == 1:
                                     if res[oRow][rar_sample_type] in [
                                         "ntc",
@@ -18628,9 +20009,7 @@ class Run:
                                         "ntp",
                                         "nrt",
                                     ]:
-                                        exclVal += (
-                                            "product detected in negative control;"
-                                        )
+                                        exclVal += "product detected in negative control;"
 
                         if finPeakCount > 1:
                             if res[oRow][rar_sample_type] in [
@@ -18640,7 +20019,11 @@ class Run:
                                 "nrt",
                             ]:
                                 noteVal += "several products with different melting temperatures detected;"
-                            if res[oRow][rar_sample_type] in ["std", "pos", "unkn"]:
+                            if res[oRow][rar_sample_type] in [
+                                "std",
+                                "pos",
+                                "unkn",
+                            ]:
                                 exclVal += "several products with different melting temperatures detected;"
 
                         # Write back
@@ -18666,7 +20049,8 @@ class Run:
                             )
                             resTable[rowPos][12] = peakResDeltaH[oRow][oCol]
                             resTable[rowPos][13] = (
-                                peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow]
+                                peakResDeltaH[oRow][oCol]
+                                / peakResSumDeltaH[oRow]
                             )
                             resTable[rowPos][14] = peakResH[oRow][oCol]
                             resTable[rowPos][15] = (
@@ -18681,10 +20065,13 @@ class Run:
                             )
                             meanResDeltaH += peakResDeltaH[oRow][oCol]
                             meanResSumDeltaH += (
-                                peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow]
+                                peakResDeltaH[oRow][oCol]
+                                / peakResSumDeltaH[oRow]
                             )
                             meanResH += peakResH[oRow][oCol]
-                            meanResSumH += peakResH[oRow][oCol] / peakResSumH[oRow]
+                            meanResSumH += (
+                                peakResH[oRow][oCol] / peakResSumH[oRow]
+                            )
                             countAddedRows += 1
                         else:
                             resTable[rowPos][9] = 0.0
@@ -18701,7 +20088,9 @@ class Run:
                     resTable[averageRow][10] = meanResFluor / countAddedRows
                     resTable[averageRow][11] = meanResSumFuor / countAddedRows
                     resTable[averageRow][12] = meanResDeltaH / countAddedRows
-                    resTable[averageRow][13] = meanResSumDeltaH / countAddedRows
+                    resTable[averageRow][13] = (
+                        meanResSumDeltaH / countAddedRows
+                    )
                     resTable[averageRow][14] = meanResH / countAddedRows
                     resTable[averageRow][15] = meanResSumH / countAddedRows
                 else:
@@ -18735,7 +20124,9 @@ class Run:
                 for curCol in range(0, len(workPeaks)):
                     rowPos = averageRow
                     if curCol != truePeakRow:
-                        artiCol = artifactPeaks[curTarNr].index(workPeaks[curCol])
+                        artiCol = artifactPeaks[curTarNr].index(
+                            workPeaks[curCol]
+                        )
                     else:
                         artiCol = -1
                     colOffset = 17 + 9 * curCol
@@ -18757,23 +20148,29 @@ class Run:
                                 oCol = orderPeaks[oRow][artiCol]
 
                             if oCol >= 0:
-                                resTable[rowPos][colOffset] = peakResTemp[oRow][oCol]
-                                resTable[rowPos][colOffset + 1] = peakResWidth[oRow][
-                                    oCol
-                                ]
-                                resTable[rowPos][colOffset + 2] = peakResFluor[oRow][
-                                    oCol
-                                ]
+                                resTable[rowPos][colOffset] = peakResTemp[
+                                    oRow
+                                ][oCol]
+                                resTable[rowPos][colOffset + 1] = peakResWidth[
+                                    oRow
+                                ][oCol]
+                                resTable[rowPos][colOffset + 2] = peakResFluor[
+                                    oRow
+                                ][oCol]
                                 resTable[rowPos][colOffset + 3] = (
-                                    peakResFluor[oRow][oCol] / peakResSumFuor[oRow]
+                                    peakResFluor[oRow][oCol]
+                                    / peakResSumFuor[oRow]
                                 )
-                                resTable[rowPos][colOffset + 4] = peakResDeltaH[oRow][
-                                    oCol
-                                ]
+                                resTable[rowPos][
+                                    colOffset + 4
+                                ] = peakResDeltaH[oRow][oCol]
                                 resTable[rowPos][colOffset + 5] = (
-                                    peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow]
+                                    peakResDeltaH[oRow][oCol]
+                                    / peakResSumDeltaH[oRow]
                                 )
-                                resTable[rowPos][colOffset + 6] = peakResH[oRow][oCol]
+                                resTable[rowPos][colOffset + 6] = peakResH[
+                                    oRow
+                                ][oCol]
                                 resTable[rowPos][colOffset + 7] = (
                                     peakResH[oRow][oCol] / peakResSumH[oRow]
                                 )
@@ -18781,14 +20178,18 @@ class Run:
                                 meanResPeakWidth += peakResWidth[oRow][oCol]
                                 meanResFluor += peakResFluor[oRow][oCol]
                                 meanResSumFuor += (
-                                    peakResFluor[oRow][oCol] / peakResSumFuor[oRow]
+                                    peakResFluor[oRow][oCol]
+                                    / peakResSumFuor[oRow]
                                 )
                                 meanResDeltaH += peakResDeltaH[oRow][oCol]
                                 meanResSumDeltaH += (
-                                    peakResDeltaH[oRow][oCol] / peakResSumDeltaH[oRow]
+                                    peakResDeltaH[oRow][oCol]
+                                    / peakResSumDeltaH[oRow]
                                 )
                                 meanResH += peakResH[oRow][oCol]
-                                meanResSumH += peakResH[oRow][oCol] / peakResSumH[oRow]
+                                meanResSumH += (
+                                    peakResH[oRow][oCol] / peakResSumH[oRow]
+                                )
                                 countAddedRows += 1
                             else:
                                 resTable[rowPos][colOffset + 1] = 0.0
@@ -18800,7 +20201,9 @@ class Run:
                                 resTable[rowPos][colOffset + 7] = 0.0
                     if countAddedRows > 0:
                         resTable[averageRow][colOffset - 1] = countAddedRows
-                        resTable[averageRow][colOffset] = meanResTemp / countAddedRows
+                        resTable[averageRow][colOffset] = (
+                            meanResTemp / countAddedRows
+                        )
                         resTable[averageRow][colOffset + 1] = (
                             meanResPeakWidth / countAddedRows
                         )
@@ -18816,7 +20219,9 @@ class Run:
                         resTable[averageRow][colOffset + 5] = (
                             meanResSumDeltaH / countAddedRows
                         )
-                        resTable[averageRow][colOffset + 6] = meanResH / countAddedRows
+                        resTable[averageRow][colOffset + 6] = (
+                            meanResH / countAddedRows
+                        )
                         resTable[averageRow][colOffset + 7] = (
                             meanResSumH / countAddedRows
                         )
@@ -18861,7 +20266,8 @@ class Run:
                                     == "saturating DNA binding dye"
                                 ):
                                     finalFactor = (
-                                        peakResFluor[rRow][lCol] / peakResSumFuor[rRow]
+                                        peakResFluor[rRow][lCol]
+                                        / peakResSumFuor[rRow]
                                     )
                                     goodVal = "{:.3f}".format(finalFactor)
                                     _change_subelement(
@@ -18899,11 +20305,17 @@ class Run:
                                                     pass
                                                 else:
                                                     if 0.01 < ampEff < 3.0:
-                                                        finalCq = oldCq - np.log10(
-                                                            finalFactor
-                                                        ) / np.log10(ampEff)
-                                                        goodVal = "{:.3f}".format(
-                                                            finalCq
+                                                        finalCq = (
+                                                            oldCq
+                                                            - np.log10(
+                                                                finalFactor
+                                                            )
+                                                            / np.log10(ampEff)
+                                                        )
+                                                        goodVal = (
+                                                            "{:.3f}".format(
+                                                                finalCq
+                                                            )
                                                         )
                                                         _change_subelement(
                                                             rdmlElemData[rRow],
@@ -18913,7 +20325,9 @@ class Run:
                                                             True,
                                                             "string",
                                                         )
-                                goodVal = "{:.3f}".format(peakResTemp[rRow][lCol])
+                                goodVal = "{:.3f}".format(
+                                    peakResTemp[rRow][lCol]
+                                )
                                 _change_subelement(
                                     rdmlElemData[rRow],
                                     "meltTemp",
@@ -18951,7 +20365,9 @@ def main():
     parser = argparse.ArgumentParser(
         description="The command line interface to the RDML-Python library."
     )
-    parser.add_argument("--version", action="store_true", help="print version number")
+    parser.add_argument(
+        "--version", action="store_true", help="print version number"
+    )
     parser.add_argument(
         "-v",
         "--validate",
@@ -18973,9 +20389,15 @@ def main():
         dest="listExp",
         help="list experiments",
     )
-    parser.add_argument("-r", "--run", metavar="run_1", dest="run", help="select run")
     parser.add_argument(
-        "-lr", "--listrun", metavar="data.rdml", dest="listRun", help="list runs"
+        "-r", "--run", metavar="run_1", dest="run", help="select run"
+    )
+    parser.add_argument(
+        "-lr",
+        "--listrun",
+        metavar="data.rdml",
+        dest="listRun",
+        help="list runs",
     )
     parser.add_argument(
         "-lrp",
@@ -19225,7 +20647,11 @@ def main():
                 print("No runs found!")
                 sys.exit(0)
             cli_run = cli_runList[0]
-            print('No run given (use option -r). Using "' + cli_runList[0]["id"] + '"')
+            print(
+                'No run given (use option -r). Using "'
+                + cli_runList[0]["id"]
+                + '"'
+            )
 
         cli_pcrEfficiencyExl = 0.05
         cli_excludeNoPlateau = False
@@ -19323,7 +20749,9 @@ def main():
             cli_meltCurveAnalysis.migrate_version_1_0_to_1_1()
         if args.experiment:
             try:
-                cli_exp = cli_meltCurveAnalysis.get_experiment(byid=args.experiment)
+                cli_exp = cli_meltCurveAnalysis.get_experiment(
+                    byid=args.experiment
+                )
             except RdmlError as cli_err:
                 print("Error: " + str(cli_err))
                 sys.exit(1)
@@ -19354,7 +20782,11 @@ def main():
                 print("No runs found!")
                 sys.exit(0)
             cli_run = cli_runList[0]
-            print('No run given (use option -r). Using "' + cli_runList[0]["id"] + '"')
+            print(
+                'No run given (use option -r). Using "'
+                + cli_runList[0]["id"]
+                + '"'
+            )
 
         cli_saveRDML = False
         cli_saveRawData = False
@@ -19440,7 +20872,9 @@ def main():
                     for cli_row in cli_result["rawData"]:
                         for cli_col in cli_row:
                             if type(cli_col) is float:
-                                cli_ResStr += "{0:0.3f}".format(float(cli_col)) + "\t"
+                                cli_ResStr += (
+                                    "{0:0.3f}".format(float(cli_col)) + "\t"
+                                )
                             else:
                                 cli_ResStr += str(cli_col) + "\t"
                         cli_ResStr = re.sub(r"\t$", "\n", cli_ResStr)
@@ -19449,13 +20883,16 @@ def main():
         if args.saveDerivative:
             if "derivative" in cli_result:
                 if "smoothed" in cli_result["derivative"]:
-                    with open(args.saveDerivative + "_smoothed.tsv", "w") as cli_f:
+                    with open(
+                        args.saveDerivative + "_smoothed.tsv", "w"
+                    ) as cli_f:
                         cli_ResStr = ""
                         for cli_row in cli_result["derivative"]["smoothed"]:
                             for cli_col in cli_row:
                                 if type(cli_col) is float:
                                     cli_ResStr += (
-                                        "{0:0.8f}".format(float(cli_col)) + "\t"
+                                        "{0:0.8f}".format(float(cli_col))
+                                        + "\t"
                                     )
                                 else:
                                     cli_ResStr += str(cli_col) + "\t"
@@ -19463,13 +20900,16 @@ def main():
                         cli_f.write(cli_ResStr)
 
                 if "normalized" in cli_result["derivative"]:
-                    with open(args.saveDerivative + "_normalized.tsv", "w") as cli_f:
+                    with open(
+                        args.saveDerivative + "_normalized.tsv", "w"
+                    ) as cli_f:
                         cli_ResStr = ""
                         for cli_row in cli_result["derivative"]["normalized"]:
                             for cli_col in cli_row:
                                 if type(cli_col) is float:
                                     cli_ResStr += (
-                                        "{0:0.8f}".format(float(cli_col)) + "\t"
+                                        "{0:0.8f}".format(float(cli_col))
+                                        + "\t"
                                     )
                                 else:
                                     cli_ResStr += str(cli_col) + "\t"
@@ -19481,11 +20921,14 @@ def main():
                         args.saveDerivative + "_firstDerivative.tsv", "w"
                     ) as cli_f:
                         cli_ResStr = ""
-                        for cli_row in cli_result["derivative"]["firstDerivative"]:
+                        for cli_row in cli_result["derivative"][
+                            "firstDerivative"
+                        ]:
                             for cli_col in cli_row:
                                 if type(cli_col) is float:
                                     cli_ResStr += (
-                                        "{0:0.8e}".format(float(cli_col)) + "\t"
+                                        "{0:0.8e}".format(float(cli_col))
+                                        + "\t"
                                     )
                                 else:
                                     cli_ResStr += str(cli_col) + "\t"
@@ -19497,11 +20940,14 @@ def main():
                         args.saveDerivative + "_secondDerivative.tsv", "w"
                     ) as cli_f:
                         cli_ResStr = ""
-                        for cli_row in cli_result["derivative"]["secondDerivative"]:
+                        for cli_row in cli_result["derivative"][
+                            "secondDerivative"
+                        ]:
                             for cli_col in cli_row:
                                 if type(cli_col) is float:
                                     cli_ResStr += (
-                                        "{0:0.8e}".format(float(cli_col)) + "\t"
+                                        "{0:0.8e}".format(float(cli_col))
+                                        + "\t"
                                     )
                                 else:
                                     cli_ResStr += str(cli_col) + "\t"
@@ -19517,7 +20963,9 @@ def main():
                             if isinstance(cli_col, np.float64) or isinstance(
                                 cli_col, float
                             ):
-                                cli_ResStr += "{0:0.3f}".format(float(cli_col)) + "\t"
+                                cli_ResStr += (
+                                    "{0:0.3f}".format(float(cli_col)) + "\t"
+                                )
                             else:
                                 cli_ResStr += str(cli_col) + "\t"
                         cli_ResStr = re.sub(r"\t$", "\n", cli_ResStr)
