@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "lc96parser"
+version = "0.0.1"
+description = ""
+authors = ["Chang Ye <yech1990@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13"
+pandas = "^2.1.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
