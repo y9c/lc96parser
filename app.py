@@ -32,6 +32,14 @@ def to_excel(df):
     return processed_data
 
 
+hide_streamlit_style = """
+            <style>
+            [data-testid="stToolbar"] {visibility: hidden !important;}
+            footer {visibility: hidden !important;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 # File uploader widget
 uploaded_file = st.file_uploader("Choose a PDF file", type="lc96p")
 if uploaded_file is not None:
@@ -85,11 +93,3 @@ if uploaded_file is not None:
             st.error(f"An error occurred while parsing the lc96p file: {e}")
     # Delete the temporary files
     os.remove(temp_file_path)
-
-hide_streamlit_style = """
-            <style>
-            [data-testid="stToolbar"] {visibility: hidden !important;}
-            footer {visibility: hidden !important;}
-            </style>
-            """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
