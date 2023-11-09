@@ -34,7 +34,7 @@ if uploaded_file is not None:
             # Display the table
             st.write("Parsed Table:")
             st.dataframe(
-                df_plate.style.background_gradient().format("{:.2f}"),
+                df_plate.style.background_gradient(axis=None).format("{:.2f}"),
                 use_container_width=True,
                 height=(df_plate.shape[0] + 1) * 35 + 3,
             )
