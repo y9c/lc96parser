@@ -28,7 +28,8 @@ def convert_file(input_file, rdml_file, excel_file):
         )
         subprocess.call(
             [
-                "python3",
+                # /home/adminuser/venv/bin/python
+                "python",
                 script_path,
                 "-lrp",
                 input_file,
