@@ -75,6 +75,34 @@ if uploaded_file is not None:
             )
             st.plotly_chart(fig, use_container_width=True, height=550)
 
+            if st.button("Extract 50% cycles"):
+                max_cq_cutoff = 0.2
+                df = amp_table.loc[:, amp_table.max(axis=0) > max_cq_cutoff]
+                amp_table_delta = (
+                    (df - df.shift(1)).idxmax(axis=0).reset_index()
+                )
+                amp50_plate = (
+                    amp_table_delta.join(
+                        amp_table_delta["Well"].str.extract(
+                            r"(?P<letter>[A-Z])(?P<digit>\d+)"
+                        )
+                    )
+                    .assign(digit=lambda x: x.digit.astype(int))
+                    .pivot(
+                        index="letter",
+                        columns="digit",
+                        values=0,
+                    )
+                )
+                st.subheader("50% cycles", divider="rainbow")
+                st.dataframe(
+                    amp50_plate.style.background_gradient(axis=None).format(
+                        "{:.0f}"
+                    ),
+                    use_container_width=True,
+                    height=(amp50_plate.shape[0] + 1) * 35 + 3,
+                )
+
             st.subheader("Melt curves", divider="rainbow")
             melt_table = melt_table - melt_table.shift(-1)
             fig = px.line(melt_table, x=melt_table.index, y=melt_table.columns)
@@ -106,6 +134,7 @@ if uploaded_file is not None:
                 use_container_width=True,
                 height=(result_table.shape[0] + 1) * 35 + 3,
             )
+
             # df_xlsx = to_excel(result_table)
             # st.download_button(
             #     label="📥 Download Current Result",
