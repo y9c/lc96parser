@@ -6,6 +6,7 @@
 
 
 import io
+import math
 import os
 import tempfile
 
@@ -88,13 +89,16 @@ if uploaded_file is not None:
         )
         st.plotly_chart(fig, use_container_width=True, height=550)
 
-        if st.button("Extract 50% cycles"):
+        fold = st.number_input("The fold of template used for final PCR?")
+        if st.button("How many PCR cycle do I need?"):
             max_cq_cutoff = 0.2
             df = amp_table.copy()
             # df.loc[:, df.max(axis=0) > max_cq_cutoff] = 0
-            amp_table_delta = (df - df.shift(1)).idxmax(axis=0)
+            amp_table_delta = (df - df.shift(1)).idxmax(axis=0) - round(
+                math.log2(fold), 0
+            )
             amp_table_delta[df.max(axis=0) <= max_cq_cutoff] = pd.NA
-            amp_table_delta = amp_table_delta .reset_index()
+            amp_table_delta = amp_table_delta.reset_index()
             amp50_plate = (
                 amp_table_delta.join(
                     amp_table_delta["Well"].str.extract(
