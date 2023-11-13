@@ -155,9 +155,9 @@ if uploaded_file is not None:
         temp_file_path = temp_file.name
 
     loading_placeholder = st.empty()
-    cq_placeholder = st.empty()
     amp_placeholder = st.empty()
     melt_placeholder = st.empty()
+    cq_placeholder = st.empty()
     if (
         "file_id" not in st.session_state
         or st.session_state.file_id != uploaded_file.file_id
