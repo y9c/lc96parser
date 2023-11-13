@@ -89,7 +89,9 @@ if uploaded_file is not None:
         )
         st.plotly_chart(fig, use_container_width=True, height=550)
 
-        fold = st.number_input("The fold of template used for final PCR?")
+        fold = st.number_input(
+            "The fold of template used for final PCR?", value=1.00
+        )
         if st.button("How many PCR cycle do I need?"):
             max_cq_cutoff = 0.2
             df = amp_table.copy()
