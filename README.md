@@ -4,11 +4,11 @@
 
 ## How to use?
 
-As a web app:
+- As a web app:
 
-[https://reportqc.streamlit.app/](https://reportqc.streamlit.app/)
+[https://reportqp.streamlit.app/](https://reportqp.streamlit.app/)
 
-As a command line app:
+- As a command line app:
 
 ```
 git clone git@github.com:y9c/lc96parser.git
