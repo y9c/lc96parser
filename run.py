@@ -7,6 +7,7 @@
 # Created: 2022-06-05 17:26
 
 import io
+import logging
 import os
 import subprocess
 import sys
@@ -15,6 +16,12 @@ import tempfile
 import pandas as pd
 
 from rdmlpython.rdml import Rdml
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    force=True,
+)
 
 
 def reshape_result(result_table):
@@ -34,17 +41,17 @@ def reshape_result(result_table):
     return df_plate
 
 
-def run_lrp(input_file):
+def extract_run(input_file):
     # Run LinRegPCR from commandline
     cli_linRegPCR = Rdml(input_file)
     if cli_linRegPCR.version() == "1.0":
         cli_linRegPCR.migrate_version_1_0_to_1_1()
     cli_expList = cli_linRegPCR.experiments()
     if len(cli_expList) < 1:
-        print("No experiments found!")
+        logging.error("No experiments found!")
         sys.exit(0)
     cli_exp = cli_expList[0]
-    print(
+    logging.info(
         'No experiment given (use option -e). Using "'
         + cli_expList[0]["id"]
         + '"'
@@ -52,26 +59,42 @@ def run_lrp(input_file):
 
     cli_runList = cli_exp.runs()
     if len(cli_runList) < 1:
-        print("No runs found!")
+        logging.error("No runs found!")
         sys.exit(0)
-    cli_run = cli_runList[0]
-    print('No run given (use option -r). Using "' + cli_runList[0]["id"] + '"')
+    logging.info(
+        'No run given (use option -r). Using "' + cli_runList[0]["id"] + '"'
+    )
+    run = cli_runList[0]
+    return run
 
+
+def export_amp(run):
     # dMode: amp for amplification data, melt for meltcurve data
     # is str
+    logging.info("Exporting amplification data...")
     amp_table = (
-        pd.read_csv(io.StringIO(cli_run.export_table("amp")), sep="\t")
-        .set_index("Well")
-        .iloc[:, 6:]
-    ).T
-    melt_table = (
-        pd.read_csv(io.StringIO(cli_run.export_table("melt")), sep="\t")
+        pd.read_csv(io.StringIO(run.export_table("amp")), sep="\t")
         .set_index("Well")
         .iloc[:, 6:]
     ).T
     amp_table.index = amp_table.index.astype(int)
+    return amp_table
 
-    cli_result = cli_run.linRegPCR(
+
+def export_melt(run):
+    logging.info("Exporting meltcurve data...")
+    melt_table = (
+        pd.read_csv(io.StringIO(run.export_table("melt")), sep="\t")
+        .set_index("Well")
+        .iloc[:, 6:]
+    ).T
+    melt_table.index = melt_table.index.astype(float)
+    return melt_table
+
+
+def export_cq(run):
+    logging.info("Running LinRegPCR...")
+    cli_result = run.linRegPCR(
         pcrEfficiencyExl=0.05,
         updateRDML=False,
         excludeNoPlateau=True,
@@ -92,7 +115,7 @@ def run_lrp(input_file):
         pd.read_csv(io.StringIO(cli_result["resultsCSV"]), sep="\t")
     )
 
-    return amp_table, melt_table, result_table
+    return result_table
 
 
 # create 3 files for each input
@@ -150,7 +173,10 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         sys.exit("Usage: run.py input_file.lc96p")
     input_file = sys.argv[1]
-    amp_table, melt_table, result_table = run_lrp(input_file)
+    run = extract_run(input_file)
+    amp_table = export_amp(run)
+    melt_table = export_melt(run)
+    result_table = export_cq(run)
     print(amp_table)
     print(melt_table)
     print(result_table)
